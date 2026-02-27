@@ -27,4 +27,5 @@ public class Usuarios {
     private Integer intentosfallidos;
     private LocalDateTime ultimologin;
     private LocalDateTime fechacreacion;
+
 }

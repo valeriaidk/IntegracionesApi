@@ -1,4 +1,4 @@
-package com.extech.IntegracionesApis.DTO;
+package com.extech.IntegracionesApis.DTO.Response;
 
 public class a {
 }

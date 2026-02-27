@@ -15,8 +15,9 @@ public class Empresa {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long idempresa;
-    private String codigo;
+    private String codigo; // RUC o DNI de la empresa
     private String nombre;
+    private String tipoDocumento; 
     private Boolean activo;
     private LocalDateTime fechacreacion;
 }
