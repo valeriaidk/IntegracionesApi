@@ -15,9 +15,18 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
+                // Permitir acceso a Swagger y OpenAPI
+                .requestMatchers(
+                    "/v3/api-docs/**",
+                    "/swagger-ui/**",
+                    "/swagger-ui.html"
+                ).permitAll()
+                // Permitir acceso a APIs y actuador
                 .requestMatchers("/api/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
+                // Home y error
                 .requestMatchers("/", "/error").permitAll()
+                // Todo lo demás requiere autenticación
                 .anyRequest().authenticated()
             );
         
