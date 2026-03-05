@@ -20,12 +20,15 @@ public class ConsultaApi {
     @Column(name = "BaseUrl", length = 500, nullable = false)
     private String baseUrl;
 
+    @Column(name = "Endpoint", length = 500)
+    private String endpoint;
+
     @Column(name = "HttpMethod", length = 10, nullable = false)
     private String httpMethod;
 
     @Column(name = "AuthHeaderName", length = 100)
     private String authHeaderName;
-q
+
     @Column(name = "Token", length = 1000)
     private String token;
 
