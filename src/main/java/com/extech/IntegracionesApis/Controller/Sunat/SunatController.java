@@ -22,11 +22,7 @@ public class SunatController {
 
     @GetMapping("/consultar/{numero}")
     @Operation(summary = "Consulta RUC", description = "Consulta información de un RUC")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Información del RUC encontrada"),
-            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
-    })
-    public ResponseEntity<?> consultarRUC(@Parameter(description = "Número de RUC a consultar") @PathVariable String numero) {
+    public ResponseEntity<?> consultarRUC(@PathVariable String numero) {
         try {
             SunatResponse response = sunatService.consultarRUC(numero);
             return ResponseEntity.ok(response);
