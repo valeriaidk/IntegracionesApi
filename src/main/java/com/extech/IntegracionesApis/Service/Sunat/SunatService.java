@@ -1,10 +1,11 @@
 package com.extech.IntegracionesApis.Service.Sunat;
 
-import com.extech.IntegracionesApis.Domain.Model.ConsultaApi;
+import com.extech.IntegracionesApis.Domain.Model.ConfiguracionApiFuncion;
 import com.extech.IntegracionesApis.Domain.Model.Log;
+import com.extech.IntegracionesApis.Repository.Sunat.SunatConfiguracionRepository;
 import com.extech.IntegracionesApis.Domain.Dto.Sunat.SunatResponse;
-import com.extech.IntegracionesApis.Repository.Reniec.ConsultaApiRepository;
 import com.extech.IntegracionesApis.Repository.Sunat.SunatLogRepository;
+import com.extech.IntegracionesApis.Util.Security.TokenEncryptionUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -16,7 +17,7 @@ import java.util.Optional;
 public class SunatService {
 
     @Autowired
-    private ConsultaApiRepository consultaApiRepository;
+    private SunatConfiguracionRepository configRepository;
 
     @Autowired
     private SunatLogRepository sunatLogRepository;
@@ -25,44 +26,53 @@ public class SunatService {
     private RestTemplate restTemplate;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private TokenEncryptionUtil encryptionUtil = new TokenEncryptionUtil();
 
     // MÉTODO PRINCIPAL: Consultar RUC
     public SunatResponse consultarRUC(String numeroDocumento) {
         try {
-            // BUSCAR EN CACHE (IT_Log)
-            Optional<Log> logCache = sunatLogRepository.findByTipoDocumentoAndNumeroDocumento("RUC", numeroDocumento);
-            if (logCache.isPresent()) {
-                return objectMapper.readValue(logCache.get().getRespuesta(), SunatResponse.class);
+            // BUSCAR EN CACHE (IT_Log) - temporalmente desactivado
+            // Optional<Log> logCache = sunatLogRepository.findByTipoDocumentoAndNumeroDocumento("RUC", numeroDocumento);
+            // if (logCache.isPresent()) {
+            //     return objectMapper.readValue(logCache.get().getRespuesta(), SunatResponse.class);
+            // }
+
+            // OBTENER CONFIGURACIÓN ESPECÍFICA DE SUNAT
+            ConfiguracionApiFuncion config = configRepository
+                .findConfiguracionSunatActiva()
+                .orElseThrow(() -> new Exception("No se encontró configuración para RUC"));
+
+            // VERIFICAR QUE TENGA CREDENCIALES
+            if (config.getCredencialClave() == null || config.getCredencialClave().isEmpty()) {
+                throw new Exception("No se encontró token configurado para RUC");
             }
 
-            // OBTENER CONFIGURACIÓN (uspConsultaSunatReniec)
-            ConsultaApi consultaConfig = consultaApiRepository.findByDocumentoAndActivo("RUC", true);
-            if (consultaConfig == null) {
-                throw new Exception("No se encontró configuración para RUC en IT_Consultas");
-            }
+            // DESENCRIPTAR TOKEN (de CredencialClave)
+            TokenEncryptionUtil crypto = new TokenEncryptionUtil();
+            String tokenPlano = crypto.decrypt(config.getCredencialClave());
 
-            // CONSTRUIR URL COMPLETA
-            String urlCompleta = consultaConfig.getBaseUrl() + consultaConfig.getEndpoint() + numeroDocumento;
+            // CONSTRUIR URL
+            String urlCompleta = config.getUrlEndpoint() + numeroDocumento;
 
-            // LLAMAR A LA API EXTERNA
-            SunatResponse response = llamarApiSunat(urlCompleta, consultaConfig);
+            // LLAMAR API
+            SunatResponse response = llamarApiSunat(urlCompleta, tokenPlano);
 
-            // GUARDAR EN IT_Log
-            guardarEnLog("RUC", numeroDocumento, response, 200);
+            // GUARDAR EN IT_Log (temporalmente comentado)
+            // guardarEnLog("RUC", numeroDocumento, response, 200);
 
             return response;
 
         } catch (Exception e) {
-            registrarError("RUC", numeroDocumento, e.getMessage());
+            // registrarError("RUC", numeroDocumento, e.getMessage());
             throw new RuntimeException("Error al consultar RUC: " + e.getMessage(), e);
         }
     }
 
     // Llamar API SUNAT
-    private SunatResponse llamarApiSunat(String url, ConsultaApi config) {
+    private SunatResponse llamarApiSunat(String url, String token) {
         try {
             org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-            headers.set("Authorization", "Bearer " + config.getToken());
+            headers.set("Authorization", "Bearer " + token);
             org.springframework.http.HttpEntity<String> entity = new org.springframework.http.HttpEntity<>(headers);
 
             org.springframework.http.ResponseEntity<SunatResponse> response = restTemplate.exchange(

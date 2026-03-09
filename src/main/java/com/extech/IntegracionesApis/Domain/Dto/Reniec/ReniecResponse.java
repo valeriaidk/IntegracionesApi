@@ -1,17 +1,14 @@
 package com.extech.IntegracionesApis.Domain.Dto.Reniec;
 
-import lombok.Getter;
-import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import lombok.Data;
 
-@Getter
-@Setter
+@Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ReniecResponse {
-    private String numeroDocumento;
-    private String nombres;
-    private String apellidoPaterno;
-    private String apellidoMaterno;
-    private String nombreCompleto;
-    private String direccion;
-    private String ubigeo;
-    private String razonSocial; // Para RUC
+    private String first_name;
+    private String first_last_name;
+    private String second_last_name;
+    private String full_name;
+    private String document_number;
 }

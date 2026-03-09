@@ -25,15 +25,8 @@ public class ReniecController {
             summary = "Consultar documento en RENIEC",
             description = "Permite consultar información de DNI o RUC a través del servicio de RENIEC"
     )
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Consulta exitosa"),
-            @ApiResponse(responseCode = "400", description = "Tipo de documento inválido"),
-            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
-    })
     public ResponseEntity<?> consultarDocumento(
-            @Parameter(description = "Tipo de documento (DNI o RUC)", required = true, example = "DNI")
             @PathVariable String tipo,
-            @Parameter(description = "Número de documento a consultar", required = true, example = "71234567")
             @PathVariable String numero) {
         try {
             if ("DNI".equalsIgnoreCase(tipo)) {
