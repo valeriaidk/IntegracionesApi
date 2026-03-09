@@ -1,10 +1,11 @@
 package com.extech.IntegracionesApis.Service.Reniec;
 
-import com.extech.IntegracionesApis.Domain.Model.ConsultaApi;
+import com.extech.IntegracionesApis.Domain.Model.ConfiguracionApiFuncion;
 import com.extech.IntegracionesApis.Domain.Model.Log;
-import com.extech.IntegracionesApis.Repository.Reniec.ConsultaApiRepository;
+import com.extech.IntegracionesApis.Repository.Reniec.ReniecConfiguracionRepository;
 import com.extech.IntegracionesApis.Repository.LogRepository;
 import com.extech.IntegracionesApis.Domain.Dto.Reniec.ReniecResponse;
+import com.extech.IntegracionesApis.Util.Security.TokenEncryptionUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -16,7 +17,7 @@ import java.util.Optional;
 public class ReniecService {
 
     @Autowired
-    private ConsultaApiRepository consultaApiRepository;
+    private ReniecConfiguracionRepository configRepository;
 
     @Autowired
     private LogRepository logRepository;
@@ -25,6 +26,7 @@ public class ReniecService {
     private RestTemplate restTemplate;
 
     private ObjectMapper objectMapper = new ObjectMapper();
+    private TokenEncryptionUtil encryptionUtil = new TokenEncryptionUtil();
 
     // Consultar DNI
     public ReniecResponse consultarDNI(String numeroDocumento) {
@@ -39,42 +41,50 @@ public class ReniecService {
     // METODO PRINCIPAL
     private ReniecResponse consultarReniecSunat(String tipoDocumento, String numeroDocumento) {
         try {
-            // BUSCAR EN CACHE (IT_Log)
-            Optional<Log> logCache = logRepository.findByTipoDocumentoAndNumeroDocumento(tipoDocumento, numeroDocumento);
-            if (logCache.isPresent()) {
-                return objectMapper.readValue(logCache.get().getRespuesta(), ReniecResponse.class);
+            // BUSCAR EN CACHE (IT_Log) - temporalmente desactivado
+            // Optional<Log> logCache = logRepository.findByTipoDocumentoAndNumeroDocumento(tipoDocumento, numeroDocumento);
+            // if (logCache.isPresent()) {
+            //     return objectMapper.readValue(logCache.get().getRespuesta(), ReniecResponse.class);
+            // }
+
+            // OBTENER CONFIGURACIÓN ESPECÍFICA DE RENIEC
+            ConfiguracionApiFuncion config = configRepository
+                .findConfiguracionReniecActiva()
+                .orElseThrow(() -> new Exception("No se encontró configuración para: " + tipoDocumento));
+
+            // VERIFICAR QUE TENGA CREDENCIALES
+            if (config.getCredencialClave() == null || config.getCredencialClave().isEmpty()) {
+                throw new Exception("No se encontró token configurado para: " + tipoDocumento);
             }
 
-            // OBTENER CONFIGURACIÓN DEL SP (uspConsultaSunatReniec)
-            ConsultaApi consultaConfig = consultaApiRepository.findByDocumentoAndActivo(tipoDocumento, true);
-            if (consultaConfig == null) {
-                throw new Exception("No se encontró configuración para: " + tipoDocumento);
-            }
+            // DESENCRIPTAR TOKEN (de CredencialClave)
+            TokenEncryptionUtil crypto = new TokenEncryptionUtil();
+            String tokenPlano = crypto.decrypt(config.getCredencialClave());
 
-            // CONSTRUIR URL COMPLETA
-            String urlCompleta = consultaConfig.getBaseUrl() + consultaConfig.getEndpoint() + numeroDocumento;
+            // CONSTRUIR URL
+            String urlCompleta = config.getUrlEndpoint() + numeroDocumento;
 
-            // LLAMAR A LA API EXTERNA
-            ReniecResponse response = llamarApiExterna(urlCompleta, consultaConfig);
+            // LLAMAR API
+            ReniecResponse response = llamarApiExterna(urlCompleta, tokenPlano);
 
-            // GUARDAR EN IT_LOG
-            guardarEnLog(tipoDocumento, numeroDocumento, response);
+            // GUARDAR EN IT_Log (temporalmente comentado)
+            // guardarEnLog(tipoDocumento, numeroDocumento, response);
 
             return response;
 
         } catch (Exception e) {
             // Registrar error en BD
-            registrarError(tipoDocumento, numeroDocumento, e.getMessage());
+            // registrarError(tipoDocumento, numeroDocumento, e.getMessage());
             throw new RuntimeException(e);
         }
     }
 
     // Llamar API externa
-    private ReniecResponse llamarApiExterna(String url, ConsultaApi config) {
+    private ReniecResponse llamarApiExterna(String url, String token) {
         try {
             // Configurar headers
             org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-            headers.set("Authorization", "Bearer " + config.getToken());
+            headers.set("Authorization", "Bearer " + token);
             
             org.springframework.http.HttpEntity<String> entity = new org.springframework.http.HttpEntity<>(headers);
 
