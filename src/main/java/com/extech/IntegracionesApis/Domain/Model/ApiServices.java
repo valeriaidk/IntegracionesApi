@@ -8,14 +8,14 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "IT_Api")
+@Table(name = "IT_ApiService")
 
-public class Api {
+public class ApiServices {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ApiId")
-    private Integer apiId;
+    @Column(name = "ApiServiceId")
+    private Integer apiServiceId;
 
     @Column(name = "Nombre", length = 100, nullable = false)
     private String nombre;
@@ -44,4 +44,18 @@ public class Api {
     @Column(name = "Eliminado", nullable = false)
     private Boolean eliminado;
 
+    public ApiServices() {
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        this.fechaRegistro = LocalDateTime.now();
+        this.activo = true;
+        this.eliminado = false;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.fechaModificacion = LocalDateTime.now();
+    }
 }

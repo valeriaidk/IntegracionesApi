@@ -16,25 +16,15 @@ public class ApiFuncion {
     @Column(name = "FuncionId")
     private Integer funcionId;
 
-    // 🔥 RELACIÓN CON IT_Api
+    // 🔥 Relación con IT_ApiServicesFuncion
     @ManyToOne
-    @JoinColumn(name = "ApiId", nullable = false)
-    private Api api;
+    @JoinColumn(name = "ApiServicesFuncionId", nullable = false)
+    private ApiServicesFuncion apiServicesFuncion;
 
-    @Column(name = "Nombre", length = 100, nullable = false)
-    private String nombre;
-
-    @Column(name = "Codigo", length = 50, nullable = false)
-    private String codigo;
-
-    @Column(name = "Descripcion", length = 500)
-    private String descripcion;
-
-    @Column(name = "Endpoint", length = 300, nullable = false)
-    private String endpoint;
-
-    @Column(name = "Metodo", length = 10, nullable = false)
-    private String metodo;
+    // 🔥 Relación con IT_ApiExternaFuncion
+    @ManyToOne
+    @JoinColumn(name = "ApiExternaFuncionId", nullable = false)
+    private ApiExternaFuncion apiExternaFuncion;
 
     @Column(name = "UsuarioRegistro")
     private Integer usuarioRegistro;

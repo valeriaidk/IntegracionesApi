@@ -8,45 +8,39 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "IT_Usuario")
-public class Usuario {
+@Table(name = "IT_ApiServicesFuncion")
+public class ApiServicesFuncion {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "UsuarioId")
-    private Integer usuarioId;
+    @Column(name = "ApiServicesFuncionId")
+    private Integer apiServicesFuncionId;
 
+    // RELACIÓN CON IT_Api
+    @ManyToOne
+    @JoinColumn(name = "ApiId", nullable = false)
+    private ApiServices api;
 
     @Column(name = "Nombre", length = 100, nullable = false)
     private String nombre;
 
-    @Column(name = "Apellido", length = 100, nullable = false)
-    private String apellido;
+    @Column(name = "Codigo", length = 50, nullable = false)
+    private String codigo;
 
-    @Column(name = "Email", length = 150, nullable = false, unique = true)
-    private String email;
+    @Column(name = "Descripcion", length = 500)
+    private String descripcion;
 
-    // 🔐 Aquí se guarda el HASH, nunca la contraseña en texto plano
-    @Column(name = "PasswordHash", length = 256, nullable = false)
-    private String passwordHash;
+    @Column(name = "Endpoint", length = 300, nullable = false)
+    private String endpoint;
 
-    @Column(name = "Telefono", length = 20)
-    private String telefono;
+    @Column(name = "Request", columnDefinition = "nvarchar(MAX)", nullable = false)
+    private String request;
 
-    @Column(name = "EmailVerificado", nullable = false)
-    private Boolean emailVerificado;
+    @Column(name = "Response", columnDefinition = "nvarchar(MAX)", nullable = false)
+    private String response;
 
-    @Column(name = "TokenVerificacion", length = 100)
-    private String tokenVerificacion;
-
-    @Column(name = "RazonSocial", length = 200)
-    private String razonSocial;
-
-    @Column(name = "RUC", length = 20)
-    private String ruc;
-
-    @Column(name = "UltimoAcceso")
-    private LocalDateTime ultimoAcceso;
+    @Column(name = "Metodo", length = 10, nullable = false)
+    private String metodo;
 
     @Column(name = "UsuarioRegistro")
     private Integer usuarioRegistro;
@@ -66,13 +60,12 @@ public class Usuario {
     @Column(name = "Eliminado", nullable = false)
     private Boolean eliminado;
 
-    public Usuario() {
+    public ApiServicesFuncion() {
     }
 
     @PrePersist
     protected void onCreate() {
         this.fechaRegistro = LocalDateTime.now();
-        this.emailVerificado = false;
         this.activo = true;
         this.eliminado = false;
     }

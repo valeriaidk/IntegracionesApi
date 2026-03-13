@@ -8,35 +8,32 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "IT_ConfiguracionApiFuncion")
-public class ApiExterna {
+@Table(name = "IT_ApiExternaFuncion")
+public class ApiExternaFuncion {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ConfigApiFuncionId")
-    private Integer configApiFuncionId;
+    @Column(name = "ApiExternaFuncionId")
+    private Integer apiExternaFuncionId;
 
-    // Relación con IT_ApiFuncion
+    // Relación con IT_ApiServicesFuncion
     @ManyToOne
-    @JoinColumn(name = "FuncionId", nullable = false)
-    private ApiFuncion funcion;
+    @JoinColumn(name = "ApiServicesFuncionId", nullable = false)
+    private ApiServicesFuncion apiServicesFuncion;
 
     @Column(name = "UrlEndpoint", length = 500, nullable = false)
     private String urlEndpoint;
 
-    @Column(name = "MetodoHttp", length = 10)
+    @Column(name = "MetodoHttp", length = 10, nullable = false)
     private String metodoHttp;
 
-    @Column(name = "TimeoutMs")
+    @Column(name = "TimeoutMs", nullable = false)
     private Integer timeoutMs;
 
-    @Column(name = "MaxReintentos")
+    @Column(name = "MaxReintentos", nullable = false)
     private Integer maxReintentos;
 
-    // @Column(name = "IntervaloReintegroSeg")
-    // private Integer intervaloReintegroSeg;
-
-    @Column(name = "RequiereAutenticacion")
+    @Column(name = "RequiereAutenticacion", nullable = false)
     private Boolean requiereAutenticacion;
 
     @Column(name = "CredencialUsuario", length = 255)
@@ -48,31 +45,25 @@ public class ApiExterna {
     @Column(name = "CabecerasExtra", columnDefinition = "text")
     private String cabecerasExtra;
 
-    @Column(name = "UsuarioRegistro", length = 100)
-    private String usuarioRegistro;
+    @Column(name = "UsuarioRegistro")
+    private Integer usuarioRegistro;
 
-    @Column(name = "FechaRegistro")
+    @Column(name = "FechaRegistro", nullable = false)
     private LocalDateTime fechaRegistro;
 
-    @Column(name = "UsuarioModificacion", length = 100)
-    private String usuarioModificacion;
+    @Column(name = "UsuarioModificacion")
+    private Integer usuarioModificacion;
 
     @Column(name = "FechaModificacion")
     private LocalDateTime fechaModificacion;
 
-    @Column(name = "Activo")
+    @Column(name = "Activo", nullable = false)
     private Boolean activo;
 
-    @Column(name = "Eliminado")
+    @Column(name = "Eliminado", nullable = false)
     private Boolean eliminado;
 
-    // @Column(name = "ConfiguracionId")
-    // private Integer configuracionId;
-
-    // @Column(name = "id_configuracion")
-    // private Integer idConfiguracion;
-
-    public ApiExterna() {
+    public ApiExternaFuncion() {
     }
 
     @PrePersist
