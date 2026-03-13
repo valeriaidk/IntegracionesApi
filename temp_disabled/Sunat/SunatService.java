@@ -55,6 +55,12 @@ public class SunatService {
             // LLAMAR API
             SunatResponse response = llamarApiSunat(urlCompleta, tokenPlano);
 
+            // Agregar metadatos a la respuesta
+            response.setTipoConsulta("RUC");
+            response.setLimiteConsultas(100); // Límite de consultas por día
+            response.setMensaje("Consulta exitosa");
+            response.setPlan("free");
+
             // GUARDAR EN IT_Log (temporalmente comentado)
             // guardarEnLog("RUC", numeroDocumento, response, 200);
 

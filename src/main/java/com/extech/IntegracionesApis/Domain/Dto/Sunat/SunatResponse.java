@@ -34,4 +34,8 @@ public class SunatResponse {
     private String tipo_facturacion;
     private String tipo_contabilidad;
     private String comercio_exterior;
+    private String tipoConsulta; // Tipo de consulta (DNI o RUC)
+    private int limiteConsultas; // Límite de consultas permitidas
+    private String mensaje; // Mensaje informativo
+    private String plan; // Plan de uso, por defecto "free"
 }

@@ -65,6 +65,12 @@ public class ReniecService {
             // LLAMAR API
             ReniecResponse response = llamarApiExterna(urlCompleta, tokenPlano);
 
+            // Agregar metadatos a la respuesta
+            response.setTipo(tipoDocumento);
+            response.setLimiteConsultas(100); // Límite de consultas por día
+            response.setMensaje("Consulta exitosa");
+            response.setPlan("free");
+
             // GUARDAR EN IT_Log (temporalmente comentado)
             // guardarEnLog(tipoDocumento, numeroDocumento, response);
 
