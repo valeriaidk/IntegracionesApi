@@ -11,4 +11,8 @@ public class ReniecResponse {
     private String second_last_name;
     private String full_name;
     private String document_number;
+    private String tipo; // Tipo de consulta (DNI o RUC)
+    private int limiteConsultas; // Límite de consultas permitidas
+    private String mensaje; // Mensaje informativo
+    private String plan; // Plan de uso, por defecto "free"
 }
