@@ -1,12 +1,12 @@
 package com.extech.IntegracionesApis.Service.Reniec;
 
-import com.extech.IntegracionesApis.Domain.Model.Api;
-import com.extech.IntegracionesApis.Domain.Model.ApiFuncion;
-import com.extech.IntegracionesApis.Domain.Model.ConfiguracionApiFuncion;
-import com.extech.IntegracionesApis.Repository.General.ApiFuncionRepository;
+import com.extech.IntegracionesApis.Domain.Model.ApiServices;
+import com.extech.IntegracionesApis.Domain.Model.ApiServicesFuncion;
+import com.extech.IntegracionesApis.Domain.Model.ApiExternaFuncion;
 import com.extech.IntegracionesApis.Repository.General.ApiRepository;
+import com.extech.IntegracionesApis.Repository.General.ApiServicesFuncionRepository;
+import com.extech.IntegracionesApis.Repository.General.ApiExternaFuncionRepository;
 import com.extech.IntegracionesApis.Repository.Reniec.ReniecConfiguracionRepository;
-import com.extech.IntegracionesApis.Util.Security.TokenEncryptionUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,25 +17,27 @@ public class ReniecConfiguracionService {
 
     @Autowired
     private ApiRepository apiRepository;
-
+    
     @Autowired
-    private ApiFuncionRepository apiFuncionRepository;
-
+    private ApiServicesFuncionRepository apiServicesFuncionRepository;
+    
     @Autowired
-    private ReniecConfiguracionRepository configRepository;
-
+    private ApiExternaFuncionRepository apiExternaFuncionRepository;
+    
+    @Autowired
+    private ReniecConfiguracionRepository reniecConfiguracionRepository;
+    
     private ObjectMapper objectMapper = new ObjectMapper();
-    private TokenEncryptionUtil encryptionUtil = new TokenEncryptionUtil();
 
     private String apiNombre = "Decolecta";
     private String apiCodigo = "DECOLECTA";
 
     @Transactional
-    public ConfiguracionApiFuncion guardarConfiguracionReniec(String token) throws Exception {
+    public ApiExternaFuncion guardarConfiguracionReniec(String token) throws Exception {
         // Buscar o crear Api Decolecta
-        Api api = apiRepository.findByCodigo(apiCodigo)
+        ApiServices api = apiRepository.findByCodigo(apiCodigo)
                 .orElseGet(() -> {
-                    Api nuevo = new Api();
+                    ApiServices nuevo = new ApiServices();
                     nuevo.setNombre(apiNombre);
                     nuevo.setCodigo(apiCodigo);
                     nuevo.setDescripcion("API " + apiNombre);
@@ -46,11 +48,11 @@ public class ReniecConfiguracionService {
                     return apiRepository.save(nuevo);
                 });
 
-        // Buscar o crear ApiFuncion Reniec
-        ApiFuncion funcion = apiFuncionRepository.findByCodigo("RENIEC_DNI")
+        // Buscar o crear ApiServicesFuncion Reniec
+        ApiServicesFuncion funcion = apiServicesFuncionRepository.findByCodigo("RENIEC_DNI")
                 .orElseGet(() -> {
-                    ApiFuncion nueva = new ApiFuncion();
-                    nueva.setApi(api);
+                    ApiServicesFuncion nueva = new ApiServicesFuncion();
+                    nueva.setApiServiceId(api.getApiServiceId());
                     nueva.setNombre("Consulta DNI - RENIEC");
                     nueva.setCodigo("RENIEC_DNI");
                     nueva.setDescripcion("Función Consulta DNI");
@@ -60,25 +62,23 @@ public class ReniecConfiguracionService {
                     nueva.setEliminado(false);
                     nueva.setFechaRegistro(java.time.LocalDateTime.now());
                     nueva.setFechaModificacion(java.time.LocalDateTime.now());
-                    return apiFuncionRepository.save(nueva);
+                    return apiServicesFuncionRepository.save(nueva);
                 });
 
-        // Guardar configuración
-        ConfiguracionApiFuncion config = configRepository
-                .findByFuncion_FuncionId(funcion.getFuncionId())
-                .orElse(new ConfiguracionApiFuncion());
+        // Crear ApiExternaFuncion
+        ApiExternaFuncion externaFuncion = new ApiExternaFuncion();
+        externaFuncion.setNombre("RENIEC DNI Externo");
+        externaFuncion.setCodigo("RENIEC_DNI_EXT");
+        externaFuncion.setDescripcion("Configuración externa para RENIEC");
+        externaFuncion.setEndpoint("https://api.decolecta.com/v1/reniec/dni?numero=");
+        externaFuncion.setMetodo("GET");
+        externaFuncion.setToken(token);
+        externaFuncion.setActivo(true);
+        externaFuncion.setEliminado(false);
+        externaFuncion.setFechaRegistro(java.time.LocalDateTime.now());
+        externaFuncion.setFechaModificacion(java.time.LocalDateTime.now());
 
-        config.setFuncion(funcion);
-        config.setUrlEndpoint("https://api.decolecta.com/v1/reniec/dni?numero=");
-        config.setMetodoHttp("GET");
-        config.setRequiereAutenticacion(true);
-        config.setTimeoutMs(30000);  // 30 segundos
-        config.setMaxReintentos(3);   // 3 reintentos
-        config.setCredencialClave(encryptionUtil.encrypt(token));
-        config.setActivo(true);
-        config.setEliminado(false);
-
-        return configRepository.save(config);
+        return apiExternaFuncionRepository.save(externaFuncion);
     }
 
     @Transactional

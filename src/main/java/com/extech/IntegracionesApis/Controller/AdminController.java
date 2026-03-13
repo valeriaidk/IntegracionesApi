@@ -33,11 +33,12 @@ public class AdminController {
                 "success", true,
                 "message", "Usuario creado exitosamente",
                 "user", Map.of(
-                    "username", user.getUsername(),
-                    "fullName", user.getFullName(),
+                    "usuarioId", user.getUsuarioId(),
+                    "nombre", user.getNombre(),
+                    "apellido", user.getApellido(),
                     "email", user.getEmail(),
-                    "planType", user.getPlanType(),
-                    "createdAt", user.getCreatedAt()
+                    "fechaRegistro", user.getFechaRegistro(),
+                    "activo", user.getActivo()
                 )
             ));
         } catch (Exception e) {
