@@ -16,12 +16,12 @@ public class ApiAsignacion {
     @Column(name = "ApiAsignacionId")
     private Integer apiAsignacionId;
 
-    // Relación con Usuario
+    // 🔥 Relación con Usuario
     @ManyToOne
     @JoinColumn(name = "UsuarioId", nullable = false)
     private Usuario usuario;
 
-    // Relación con ApiServicesFuncion
+    // 🔥 Relación con ApiServicesFuncion
     @ManyToOne
     @JoinColumn(name = "ApiServicesFuncionId", nullable = false)
     private ApiServicesFuncion apiServicesFuncion;
