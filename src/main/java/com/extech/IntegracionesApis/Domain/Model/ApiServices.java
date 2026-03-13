@@ -9,7 +9,6 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "IT_ApiService")
-
 public class ApiServices {
 
     @Id
