@@ -1,7 +1,6 @@
 package com.extech.IntegracionesApis.Service.Sunat;
 
 import com.extech.IntegracionesApis.Domain.Model.ConfiguracionApiFuncion;
-import com.extech.IntegracionesApis.Domain.Model.Log;
 import com.extech.IntegracionesApis.Repository.Sunat.SunatConfiguracionRepository;
 import com.extech.IntegracionesApis.Domain.Dto.Sunat.SunatResponse;
 import com.extech.IntegracionesApis.Repository.Sunat.SunatLogRepository;
@@ -11,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
-import java.util.Optional;
 
 @Service
 public class SunatService {
