@@ -8,19 +8,34 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "IT_Consumo")
-public class Consumo {
+@Table(name = "IT_ApiExternaFuncion")
+public class ApiExternaFuncion {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ConsumoId")
-    private Integer consumoId;
+    @Column(name = "ApiExternaFuncionId")
+    private Integer apiExternaFuncionId;
 
-    @Column(name = "UsuarioId", nullable = false)
-    private Integer usuarioId;
+    @Column(name = "Nombre", length = 100, nullable = false)
+    private String nombre;
 
-    @Column(name = "ApiServicesFuncionId", nullable = false)
-    private Integer apiServicesFuncionId;
+    @Column(name = "Codigo", length = 50, nullable = false)
+    private String codigo;
+
+    @Column(name = "Descripcion", length = 500)
+    private String descripcion;
+
+    @Column(name = "Endpoint", length = 500, nullable = false)
+    private String endpoint;
+
+    @Column(name = "Metodo", length = 10, nullable = false)
+    private String metodo;
+
+    @Column(name = "Token", length = 1000)
+    private String token;
+
+    @Column(name = "Autorizacion", length = 1000)
+    private String autorizacion;
 
     @Column(name = "Request", length = 4000)
     private String request;
@@ -28,11 +43,11 @@ public class Consumo {
     @Column(name = "Response", length = 4000)
     private String response;
 
-    @Column(name = "Exito", nullable = false)
-    private Boolean exito;
+    @Column(name = "TiempoConsulta")
+    private Integer tiempoConsulta;
 
-    @Column(name = "EsConsulta", nullable = false)
-    private Boolean esConsulta;
+    @Column(name = "SegmentoTiempo", length = 50)
+    private String segmentoTiempo;
 
     @Column(name = "UsuarioRegistro")
     private Integer usuarioRegistro;
@@ -52,14 +67,12 @@ public class Consumo {
     @Column(name = "Eliminado", nullable = false)
     private Boolean eliminado;
 
-    public Consumo() {
+    public ApiExternaFuncion() {
     }
 
     @PrePersist
     protected void onCreate() {
         this.fechaRegistro = LocalDateTime.now();
-        this.exito = false;
-        this.esConsulta = false;
         this.activo = true;
         this.eliminado = false;
     }

@@ -8,22 +8,19 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "IT_TokenUsuario")
+@Table(name = "IT_Token_Usuario")
 public class TokenUsuario {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "TokenId")
-    private Integer tokenId;
+    @Column(name = "TokenUsuarioId")
+    private Integer tokenUsuarioId;
 
-    // 🔥 Relación con Usuario
-    @ManyToOne
-    @JoinColumn(name = "UsuarioId", nullable = false)
-    private Usuario usuario;
+    @Column(name = "UsuarioId", nullable = false)
+    private Integer usuarioId;
 
-    // ⚠ Aquí se guarda el HASH, no la ApiKey en texto plano
-    @Column(name = "TokenValue", length = 100, nullable = false)
-    private String tokenValue;
+    @Column(name = "TokenHash", length = 256, nullable = false)
+    private String tokenHash;
 
     @Column(name = "FechaInicioVigencia")
     private LocalDateTime fechaInicioVigencia;

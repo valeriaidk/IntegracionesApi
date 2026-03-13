@@ -16,21 +16,23 @@ public class PlanUsuario {
     @Column(name = "PlanUsuarioId")
     private Integer planUsuarioId;
 
-    // 🔥 Relación con Usuario
-    @ManyToOne
-    @JoinColumn(name = "UsuarioId", nullable = false)
-    private Usuario usuario;
+    @Column(name = "UsuarioId", nullable = false)
+    private Integer usuarioId;
 
-    // 🔥 Relación con Plan
-    @ManyToOne
-    @JoinColumn(name = "PlanId", nullable = false)
-    private Plan plan;
+    @Column(name = "PlanId", nullable = false)
+    private Integer planId;
 
     @Column(name = "FechaInicioVigencia", nullable = false)
     private LocalDateTime fechaInicioVigencia;
 
     @Column(name = "FechaFinVigencia")
     private LocalDateTime fechaFinVigencia;
+
+    @Column(name = "EstadoSuscripcion", length = 50)
+    private String estadoSuscripcion;
+
+    @Column(name = "Observacion", length = 500)
+    private String observacion;
 
     @Column(name = "UsuarioRegistro")
     private Integer usuarioRegistro;

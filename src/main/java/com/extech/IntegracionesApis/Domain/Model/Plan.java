@@ -1,6 +1,7 @@
 package com.extech.IntegracionesApis.Domain.Model;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
@@ -8,31 +9,22 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "IT_Consumo")
-public class Consumo {
+@Table(name = "IT_Plan")
+public class Plan {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ConsumoId")
-    private Integer consumoId;
+    @Column(name = "PlanId")
+    private Integer planId;
 
-    @Column(name = "UsuarioId", nullable = false)
-    private Integer usuarioId;
+    @Column(name = "Nombre", length = 100, nullable = false)
+    private String nombre;
 
-    @Column(name = "ApiServicesFuncionId", nullable = false)
-    private Integer apiServicesFuncionId;
+    @Column(name = "Descripcion", length = 500)
+    private String descripcion;
 
-    @Column(name = "Request", length = 4000)
-    private String request;
-
-    @Column(name = "Response", length = 4000)
-    private String response;
-
-    @Column(name = "Exito", nullable = false)
-    private Boolean exito;
-
-    @Column(name = "EsConsulta", nullable = false)
-    private Boolean esConsulta;
+    @Column(name = "PrecioMensual", precision = 10, scale = 2, nullable = false)
+    private BigDecimal precioMensual;
 
     @Column(name = "UsuarioRegistro")
     private Integer usuarioRegistro;
@@ -52,14 +44,12 @@ public class Consumo {
     @Column(name = "Eliminado", nullable = false)
     private Boolean eliminado;
 
-    public Consumo() {
+    public Plan() {
     }
 
     @PrePersist
     protected void onCreate() {
         this.fechaRegistro = LocalDateTime.now();
-        this.exito = false;
-        this.esConsulta = false;
         this.activo = true;
         this.eliminado = false;
     }

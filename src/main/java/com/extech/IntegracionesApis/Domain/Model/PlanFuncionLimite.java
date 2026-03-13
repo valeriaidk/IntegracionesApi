@@ -8,31 +8,25 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "IT_Consumo")
-public class Consumo {
+@Table(name = "IT_PlanFuncionLimite")
+public class PlanFuncionLimite {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ConsumoId")
-    private Integer consumoId;
+    @Column(name = "LimiteId")
+    private Integer limiteId;
 
-    @Column(name = "UsuarioId", nullable = false)
-    private Integer usuarioId;
+    @Column(name = "PlanId", nullable = false)
+    private Integer planId;
 
     @Column(name = "ApiServicesFuncionId", nullable = false)
     private Integer apiServicesFuncionId;
 
-    @Column(name = "Request", length = 4000)
-    private String request;
+    @Column(name = "TipoLimite", length = 50, nullable = false)
+    private String tipoLimite;
 
-    @Column(name = "Response", length = 4000)
-    private String response;
-
-    @Column(name = "Exito", nullable = false)
-    private Boolean exito;
-
-    @Column(name = "EsConsulta", nullable = false)
-    private Boolean esConsulta;
+    @Column(name = "Limite", nullable = false)
+    private Integer limite;
 
     @Column(name = "UsuarioRegistro")
     private Integer usuarioRegistro;
@@ -52,14 +46,12 @@ public class Consumo {
     @Column(name = "Eliminado", nullable = false)
     private Boolean eliminado;
 
-    public Consumo() {
+    public PlanFuncionLimite() {
     }
 
     @PrePersist
     protected void onCreate() {
         this.fechaRegistro = LocalDateTime.now();
-        this.exito = false;
-        this.esConsulta = false;
         this.activo = true;
         this.eliminado = false;
     }

@@ -8,31 +8,37 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@Table(name = "IT_Consumo")
-public class Consumo {
+@Table(name = "IT_ApiServicesFuncion")
+public class ApiServicesFuncion {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ConsumoId")
-    private Integer consumoId;
-
-    @Column(name = "UsuarioId", nullable = false)
-    private Integer usuarioId;
-
-    @Column(name = "ApiServicesFuncionId", nullable = false)
+    @Column(name = "ApiServicesFuncionId")
     private Integer apiServicesFuncionId;
+
+    @Column(name = "ApiServiceId", nullable = false)
+    private Integer apiServiceId;
+
+    @Column(name = "Nombre", length = 100, nullable = false)
+    private String nombre;
+
+    @Column(name = "Codigo", length = 50, nullable = false)
+    private String codigo;
+
+    @Column(name = "Descripcion", length = 500)
+    private String descripcion;
+
+    @Column(name = "Endpoint", length = 300, nullable = false)
+    private String endpoint;
+
+    @Column(name = "Metodo", length = 10, nullable = false)
+    private String metodo;
 
     @Column(name = "Request", length = 4000)
     private String request;
 
     @Column(name = "Response", length = 4000)
     private String response;
-
-    @Column(name = "Exito", nullable = false)
-    private Boolean exito;
-
-    @Column(name = "EsConsulta", nullable = false)
-    private Boolean esConsulta;
 
     @Column(name = "UsuarioRegistro")
     private Integer usuarioRegistro;
@@ -52,14 +58,12 @@ public class Consumo {
     @Column(name = "Eliminado", nullable = false)
     private Boolean eliminado;
 
-    public Consumo() {
+    public ApiServicesFuncion() {
     }
 
     @PrePersist
     protected void onCreate() {
         this.fechaRegistro = LocalDateTime.now();
-        this.exito = false;
-        this.esConsulta = false;
         this.activo = true;
         this.eliminado = false;
     }

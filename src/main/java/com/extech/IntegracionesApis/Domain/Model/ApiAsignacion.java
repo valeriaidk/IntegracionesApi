@@ -16,21 +16,11 @@ public class ApiAsignacion {
     @Column(name = "ApiAsignacionId")
     private Integer apiAsignacionId;
 
-    // 🔥 Relación con Usuario
-    @ManyToOne
-    @JoinColumn(name = "UsuarioId", nullable = false)
-    private Usuario usuario;
+    @Column(name = "ApiServicesFuncionId", nullable = false)
+    private Integer apiServicesFuncionId;
 
-    // 🔥 Relación con ApiServicesFuncion
-    @ManyToOne
-    @JoinColumn(name = "ApiServicesFuncionId", nullable = false)
-    private ApiServicesFuncion apiServicesFuncion;
-
-    @Column(name = "FechaInicioVigencia", nullable = false)
-    private LocalDateTime fechaInicioVigencia;
-
-    @Column(name = "FechaFinVigencia")
-    private LocalDateTime fechaFinVigencia;
+    @Column(name = "ApiExternaFuncionId", nullable = false)
+    private Integer apiExternaFuncionId;
 
     @Column(name = "UsuarioRegistro")
     private Integer usuarioRegistro;

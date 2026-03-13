@@ -26,27 +26,17 @@ public class Usuario {
     @Column(name = "Email", length = 150, nullable = false, unique = true)
     private String email;
 
-    // 🔐 Aquí se guarda el HASH, nunca la contraseña en texto plano
     @Column(name = "PasswordHash", length = 256, nullable = false)
     private String passwordHash;
 
     @Column(name = "Telefono", length = 20)
     private String telefono;
 
-    @Column(name = "EmailVerificado", nullable = false)
-    private Boolean emailVerificado;
-
-    @Column(name = "TokenVerificacion", length = 100)
-    private String tokenVerificacion;
-
     @Column(name = "RazonSocial", length = 200)
     private String razonSocial;
 
     @Column(name = "RUC", length = 20)
     private String ruc;
-
-    @Column(name = "UltimoAcceso")
-    private LocalDateTime ultimoAcceso;
 
     @Column(name = "UsuarioRegistro")
     private Integer usuarioRegistro;
@@ -72,7 +62,6 @@ public class Usuario {
     @PrePersist
     protected void onCreate() {
         this.fechaRegistro = LocalDateTime.now();
-        this.emailVerificado = false;
         this.activo = true;
         this.eliminado = false;
     }
