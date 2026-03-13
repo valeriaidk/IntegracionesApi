@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "IT_ApiKey")
-public class ApiKey {
+public class TokenUsuario {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -52,7 +52,7 @@ public class ApiKey {
     @Column(name = "Eliminado", nullable = false)
     private Boolean eliminado;
 
-    public ApiKey() {
+    public TokenUsuario() {
     }
 
     @PrePersist

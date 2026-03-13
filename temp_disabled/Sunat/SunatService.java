@@ -1,60 +1,48 @@
-package com.extech.IntegracionesApis.Service.Reniec;
+package com.extech.IntegracionesApis.Service.Sunat;
 
 import com.extech.IntegracionesApis.Domain.Model.ConfiguracionApiFuncion;
-import com.extech.IntegracionesApis.Domain.Model.Log;
-import com.extech.IntegracionesApis.Repository.Reniec.ReniecConfiguracionRepository;
-import com.extech.IntegracionesApis.Repository.LogRepository;
-import com.extech.IntegracionesApis.Domain.Dto.Reniec.ReniecResponse;
+import com.extech.IntegracionesApis.Repository.Sunat.SunatConfiguracionRepository;
+import com.extech.IntegracionesApis.Domain.Dto.Sunat.SunatResponse;
+import com.extech.IntegracionesApis.Repository.Sunat.SunatLogRepository;
 import com.extech.IntegracionesApis.Util.Security.TokenEncryptionUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDateTime;
-import java.util.Optional;
 
 @Service
-public class ReniecService {
+public class SunatService {
 
     @Autowired
-    private ReniecConfiguracionRepository configRepository;
+    private SunatConfiguracionRepository configRepository;
 
     @Autowired
-    private LogRepository logRepository;
+    private SunatLogRepository sunatLogRepository;
 
     @Autowired
     private RestTemplate restTemplate;
 
-    private ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private TokenEncryptionUtil encryptionUtil = new TokenEncryptionUtil();
 
-    // Consultar DNI
-    public ReniecResponse consultarDNI(String numeroDocumento) {
-        return consultarReniecSunat("DNI", numeroDocumento);
-    }
-
-    // Consultar RUC
-    public ReniecResponse consultarRUC(String numeroDocumento) {
-        return consultarReniecSunat("RUC", numeroDocumento);
-    }
-
-    // METODO PRINCIPAL
-    private ReniecResponse consultarReniecSunat(String tipoDocumento, String numeroDocumento) {
+    // MÉTODO PRINCIPAL: Consultar RUC
+    public SunatResponse consultarRUC(String numeroDocumento) {
         try {
             // BUSCAR EN CACHE (IT_Log) - temporalmente desactivado
-            // Optional<Log> logCache = logRepository.findByTipoDocumentoAndNumeroDocumento(tipoDocumento, numeroDocumento);
+            // Optional<Log> logCache = sunatLogRepository.findByTipoDocumentoAndNumeroDocumento("RUC", numeroDocumento);
             // if (logCache.isPresent()) {
-            //     return objectMapper.readValue(logCache.get().getRespuesta(), ReniecResponse.class);
+            //     return objectMapper.readValue(logCache.get().getRespuesta(), SunatResponse.class);
             // }
 
-            // OBTENER CONFIGURACIÓN ESPECÍFICA DE RENIEC
+            // OBTENER CONFIGURACIÓN ESPECÍFICA DE SUNAT
             ConfiguracionApiFuncion config = configRepository
-                .findConfiguracionReniecActiva()
-                .orElseThrow(() -> new Exception("No se encontró configuración para: " + tipoDocumento));
+                .findConfiguracionSunatActiva()
+                .orElseThrow(() -> new Exception("No se encontró configuración para RUC"));
 
             // VERIFICAR QUE TENGA CREDENCIALES
             if (config.getCredencialClave() == null || config.getCredencialClave().isEmpty()) {
-                throw new Exception("No se encontró token configurado para: " + tipoDocumento);
+                throw new Exception("No se encontró token configurado para RUC");
             }
 
             // DESENCRIPTAR TOKEN (de CredencialClave)
@@ -65,68 +53,67 @@ public class ReniecService {
             String urlCompleta = config.getUrlEndpoint() + numeroDocumento;
 
             // LLAMAR API
-            ReniecResponse response = llamarApiExterna(urlCompleta, tokenPlano);
+            SunatResponse response = llamarApiSunat(urlCompleta, tokenPlano);
 
             // Agregar metadatos a la respuesta
-            response.setTipo(tipoDocumento);
+            response.setTipoConsulta("RUC");
             response.setLimiteConsultas(100); // Límite de consultas por día
             response.setMensaje("Consulta exitosa");
             response.setPlan("free");
 
             // GUARDAR EN IT_Log (temporalmente comentado)
-            // guardarEnLog(tipoDocumento, numeroDocumento, response);
+            // guardarEnLog("RUC", numeroDocumento, response, 200);
 
             return response;
 
         } catch (Exception e) {
-            // Registrar error en BD
-            // registrarError(tipoDocumento, numeroDocumento, e.getMessage());
-            throw new RuntimeException(e);
+            // registrarError("RUC", numeroDocumento, e.getMessage());
+            throw new RuntimeException("Error al consultar RUC: " + e.getMessage(), e);
         }
     }
 
-    // Llamar API externa
-    private ReniecResponse llamarApiExterna(String url, String token) {
+    // Llamar API SUNAT
+    private SunatResponse llamarApiSunat(String url, String token) {
         try {
-            // Configurar headers
             org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
             headers.set("Authorization", "Bearer " + token);
-            
             org.springframework.http.HttpEntity<String> entity = new org.springframework.http.HttpEntity<>(headers);
 
-            // Hacer request GET
-            org.springframework.http.ResponseEntity<ReniecResponse> response = restTemplate.exchange(
+            org.springframework.http.ResponseEntity<SunatResponse> response = restTemplate.exchange(
                 url,
                 org.springframework.http.HttpMethod.GET,
                 entity,
-                ReniecResponse.class
+                SunatResponse.class
             );
 
-            return response.getBody();
-
+            if (response.getStatusCode().is2xxSuccessful()) {
+                return response.getBody();
+            } else {
+                throw new Exception("Error HTTP: " + response.getStatusCode());
+            }
         } catch (Exception e) {
-            throw new RuntimeException("Error al consultar API: " + e.getMessage(), e);
+            throw new RuntimeException("Error al llamar API SUNAT: " + e.getMessage(), e);
         }
     }
 
     // Guardar en IT_Log
-    private void guardarEnLog(String tipoDocumento, String numeroDocumento, ReniecResponse response) {
+    private void guardarEnLog(String tipoDocumento, String numeroDocumento, SunatResponse response, int httpStatus) {
         try {
             Log log = new Log();
             log.setTipoDocumento(tipoDocumento);
             log.setNumeroDocumento(numeroDocumento);
-            log.setHttpStatus(200);
+            log.setHttpStatus(httpStatus);
             log.setRespuesta(objectMapper.writeValueAsString(response));
             log.setFechaRegistro(LocalDateTime.now());
             log.setActivo(true);
-            
-            logRepository.save(log);
+
+            sunatLogRepository.save(log);
         } catch (Exception e) {
             System.err.println("Error al guardar en log: " + e.getMessage());
         }
     }
 
-    //Registrar errores
+    // Registrar errores
     private void registrarError(String tipoDocumento, String numeroDocumento, String mensaje) {
         try {
             Log log = new Log();
@@ -136,8 +123,8 @@ public class ReniecService {
             log.setMensaje(mensaje);
             log.setFechaRegistro(LocalDateTime.now());
             log.setActivo(false);
-            
-            logRepository.save(log);
+
+            sunatLogRepository.save(log);
         } catch (Exception e) {
             System.err.println("Error al registrar error: " + e.getMessage());
         }

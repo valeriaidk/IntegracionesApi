@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "IT_ConfiguracionApiFuncion")
-public class ConfiguracionApiFuncion {
+public class ApiExterna {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -72,7 +72,7 @@ public class ConfiguracionApiFuncion {
     // @Column(name = "id_configuracion")
     // private Integer idConfiguracion;
 
-    public ConfiguracionApiFuncion() {
+    public ApiExterna() {
     }
 
     @PrePersist
