@@ -38,9 +38,6 @@ public class AuthService {
 
         Map<String, Object> row = rows.get(0);
 
-        // 📊 Debug: Mostrar todos los datos que devuelve la base de datos
-        log.info("📋 Datos completos del usuario desde BD: {}", row);
-
         Integer usuarioId = row.get("UsuarioId") != null ? ((Number) row.get("UsuarioId")).intValue() : null;
         String nombre = row.get("Nombre") != null ? row.get("Nombre").toString() : "";
         String apellido = row.get("Apellido") != null ? row.get("Apellido").toString() : "";
@@ -49,9 +46,7 @@ public class AuthService {
 
         // 🏷️ Obtener plan real del usuario desde la base de datos
         Integer planId = row.get("PlanId") != null ? ((Number) row.get("PlanId")).intValue() : null;
-        String planNombre = row.get("PlanNombre") != null ? row.get("PlanNombre").toString() : null;
-        
-        log.info("🔍 Plan detectado - PlanId: {}, PlanNombre: {}", planId, planNombre);
+        String planNombre = row.get("PlanNombre") != null ? row.get("PlanNombre").toString() : "FREE";
         
         // Si no hay PlanNombre pero hay PlanId, usar un valor por defecto según el ID
         if (planNombre == null || planNombre.trim().isEmpty()) {
@@ -65,7 +60,6 @@ public class AuthService {
             } else {
                 planNombre = "FREE";
             }
-            log.info("🏷️ Plan asignado por defecto: {}", planNombre);
         }
 
         Boolean activo = row.get("Activo") != null && Boolean.parseBoolean(row.get("Activo").toString());
@@ -137,9 +131,6 @@ public class AuthService {
         response.put("token", apiKeyPlano);
         response.put("tipo", "ApiKey");
         response.put("usuario", usuarioMap);
-
-        // 📊 Debug: Mostrar respuesta final que se enviará al frontend
-        log.info("🚀 Respuesta final para frontend: {}", response);
 
         return response;
     }
