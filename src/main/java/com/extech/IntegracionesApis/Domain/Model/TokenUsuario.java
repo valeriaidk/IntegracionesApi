@@ -13,14 +13,14 @@ public class TokenUsuario {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "TokenUsuarioId")
-    private Integer tokenUsuarioId;
+    @Column(name = "TokenId")
+    private Integer id;
 
     @Column(name = "UsuarioId", nullable = false)
     private Integer usuarioId;
 
-    @Column(name = "TokenHash", length = 256, nullable = false)
-    private String tokenHash;
+    @Column(name = "TokenValue", length = 256, nullable = false)
+    private String tokenValue;
 
     @Column(name = "FechaInicioVigencia")
     private LocalDateTime fechaInicioVigencia;

@@ -14,19 +14,16 @@ public interface ReniecConfiguracionRepository extends JpaRepository<ApiExternaF
     /**
      * Busca configuración activa de Reniec DNI
      */
-    @Query("""
-            SELECT c FROM ApiExternaFuncion c \
-            JOIN c.apiServicesFuncion f \
-            WHERE f.codigo = 'RENIEC_DNI' AND c.activo = true""")
+    @Query("SELECT c FROM ApiExternaFuncion c WHERE c.codigo = 'RENIEC_DNI' AND c.activo = true")
     Optional<ApiExternaFuncion> findConfiguracionReniecActiva();
 
     /**
      * Busca configuración por ID de función
      */
-    Optional<ApiExternaFuncion> findByFuncion_FuncionId(Integer funcionId);
+    Optional<ApiExternaFuncion> findByApiExternaFuncionId(Integer apiExternaFuncionId);
 
     /**
      * Busca configuración por ID de función y estado
      */
-    Optional<ApiExternaFuncion> findByFuncion_FuncionIdAndActivo(Integer funcionId, Boolean activo);
+    Optional<ApiExternaFuncion> findByApiExternaFuncionIdAndActivo(Integer apiExternaFuncionId, Boolean activo);
 }

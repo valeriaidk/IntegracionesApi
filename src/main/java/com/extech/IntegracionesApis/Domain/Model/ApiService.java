@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "IT_ApiService")
-public class ApiServices {
+public class ApiService {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -43,7 +43,7 @@ public class ApiServices {
     @Column(name = "Eliminado", nullable = false)
     private Boolean eliminado;
 
-    public ApiServices() {
+    public ApiService() {
     }
 
     @PrePersist

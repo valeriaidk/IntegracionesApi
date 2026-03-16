@@ -16,7 +16,7 @@ public class BrowserLauncher {
     public void launchBrowser() {
         log.info("🚀 BrowserLauncher: ApplicationReadyEvent recibido");
         
-        String url = "http://localhost:8081/swagger-ui/index.html";
+        String url = "http://localhost:8080/swagger-ui/index.html";
         
         try {
             if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {

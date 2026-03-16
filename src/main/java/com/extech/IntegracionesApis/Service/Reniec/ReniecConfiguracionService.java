@@ -1,6 +1,6 @@
 package com.extech.IntegracionesApis.Service.Reniec;
 
-import com.extech.IntegracionesApis.Domain.Model.ApiServices;
+import com.extech.IntegracionesApis.Domain.Model.ApiService;
 import com.extech.IntegracionesApis.Domain.Model.ApiServicesFuncion;
 import com.extech.IntegracionesApis.Domain.Model.ApiExternaFuncion;
 import com.extech.IntegracionesApis.Repository.General.ApiRepository;
@@ -35,9 +35,9 @@ public class ReniecConfiguracionService {
     @Transactional
     public ApiExternaFuncion guardarConfiguracionReniec(String token) throws Exception {
         // Buscar o crear Api Decolecta
-        ApiServices api = apiRepository.findByCodigo(apiCodigo)
+        ApiService api = apiRepository.findByCodigo(apiCodigo)
                 .orElseGet(() -> {
-                    ApiServices nuevo = new ApiServices();
+                    ApiService nuevo = new ApiService();
                     nuevo.setNombre(apiNombre);
                     nuevo.setCodigo(apiCodigo);
                     nuevo.setDescripcion("API " + apiNombre);

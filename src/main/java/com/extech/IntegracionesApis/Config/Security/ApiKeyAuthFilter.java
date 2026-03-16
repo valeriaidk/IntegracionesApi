@@ -1,0 +1,71 @@
+package com.extech.IntegracionesApis.Config.Security;
+
+import com.extech.IntegracionesApis.Domain.Model.TokenUsuario;
+import com.extech.IntegracionesApis.Repository.User.TokenUsuarioRepository;
+import com.extech.IntegracionesApis.Util.Security.PasswordHashUtil;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
+
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class ApiKeyAuthFilter extends OncePerRequestFilter {
+
+    private final TokenUsuarioRepository tokenUsuarioRepository;
+    private final PasswordHashUtil passwordHashUtil;
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
+
+        String authHeader = request.getHeader("Authorization");
+
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String tokenPlano = authHeader.substring(7);
+
+            if (validarToken(tokenPlano)) {
+                UsernamePasswordAuthenticationToken auth =
+                        new UsernamePasswordAuthenticationToken("user", null, Collections.emptyList());
+                SecurityContextHolder.getContext().setAuthentication(auth);
+            } else {
+                log.warn("Token inválido en request: {}", request.getRequestURI());
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("{\"error\": \"Token inválido o expirado\"}");
+                return;
+            }
+        }
+
+        filterChain.doFilter(request, response);
+    }
+
+    private boolean validarToken(String tokenPlano) {
+        if (tokenPlano == null || tokenPlano.isEmpty()) {
+            return false;
+        }
+
+        // Buscar tokens activos y vigentes
+        List<TokenUsuario> tokensActivos = tokenUsuarioRepository.findByActivoTrueAndFechaFinVigenciaBefore(LocalDateTime.now().plusYears(10));
+
+        for (TokenUsuario tokenDb : tokensActivos) {
+            if (passwordHashUtil.verify(tokenPlano, tokenDb.getTokenValue())) { // Buscar hash en TokenValue
+                return true;
+            }
+        }
+
+        return false;
+    }
+}

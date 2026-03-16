@@ -14,18 +14,16 @@ public interface SunatConfiguracionRepository extends JpaRepository<ApiExternaFu
     /**
      * Busca configuración activa de Sunat por código de función
      */
-    @Query("SELECT c FROM ApiExternaFuncion c " +
-           "JOIN c.apiServicesFuncion f " +
-           "WHERE f.codigo = 'SUNAT_RUC' AND c.activo = true")
+    @Query("SELECT c FROM ApiExternaFuncion c WHERE c.codigo = 'SUNAT_RUC' AND c.activo = true")
     Optional<ApiExternaFuncion> findConfiguracionSunatActiva();
 
     /**
      * Busca configuración por ID de función
      */
-    Optional<ApiExternaFuncion> findByFuncion_FuncionId(Integer funcionId);
+    Optional<ApiExternaFuncion> findByApiExternaFuncionId(Integer apiExternaFuncionId);
 
     /**
      * Busca configuración por ID de función y estado activo
      */
-    Optional<ApiExternaFuncion> findByFuncion_FuncionIdAndActivo(Integer funcionId, Boolean activo);
+    Optional<ApiExternaFuncion> findByApiExternaFuncionIdAndActivo(Integer apiExternaFuncionId, Boolean activo);
 }
