@@ -54,4 +54,6 @@ public class ReniecService {
         
         return "{\"resultado\":\"datos del ruc " + numeroRuc + "\"}";
     }
+
+    public 
 }
