@@ -26,7 +26,7 @@ public class AuthService {
     private final UsuarioRepository usuarioRepository;
     private final PasswordHashUtil passwordHashUtil;
 
-    public Map<String, Object> autenticar(String email, String contrasena) {
+    public Map<String, Object> autenticar(String email, String password) {
         log.info("Intentando autenticar usuario: {}", email);
 
         List<Map<String, Object>> rows = authSpRepository.validarAcceso(email);
@@ -38,11 +38,35 @@ public class AuthService {
 
         Map<String, Object> row = rows.get(0);
 
+        // 📊 Debug: Mostrar todos los datos que devuelve la base de datos
+        log.info("📋 Datos completos del usuario desde BD: {}", row);
+
         Integer usuarioId = row.get("UsuarioId") != null ? ((Number) row.get("UsuarioId")).intValue() : null;
         String nombre = row.get("Nombre") != null ? row.get("Nombre").toString() : "";
         String apellido = row.get("Apellido") != null ? row.get("Apellido").toString() : "";
         String emailBd = row.get("Email") != null ? row.get("Email").toString() : "";
         String passwordHash = row.get("PasswordHash") != null ? row.get("PasswordHash").toString() : null;
+
+        // 🏷️ Obtener plan real del usuario desde la base de datos
+        Integer planId = row.get("PlanId") != null ? ((Number) row.get("PlanId")).intValue() : null;
+        String planNombre = row.get("PlanNombre") != null ? row.get("PlanNombre").toString() : null;
+        
+        log.info("🔍 Plan detectado - PlanId: {}, PlanNombre: {}", planId, planNombre);
+        
+        // Si no hay PlanNombre pero hay PlanId, usar un valor por defecto según el ID
+        if (planNombre == null || planNombre.trim().isEmpty()) {
+            if (planId != null) {
+                switch (planId) {
+                    case 1: planNombre = "FREE"; break;
+                    case 2: planNombre = "ESTANDAR"; break;
+                    case 3: planNombre = "PREMIUM"; break;
+                    default: planNombre = "FREE"; break;
+                }
+            } else {
+                planNombre = "FREE";
+            }
+            log.info("🏷️ Plan asignado por defecto: {}", planNombre);
+        }
 
         Boolean activo = row.get("Activo") != null && Boolean.parseBoolean(row.get("Activo").toString());
         Boolean eliminado = row.get("Eliminado") != null && Boolean.parseBoolean(row.get("Eliminado").toString());
@@ -52,7 +76,7 @@ public class AuthService {
             throw new RuntimeException("Usuario inactivo");
         }
 
-        boolean passwordValido = passwordHashUtil.verify(contrasena, passwordHash);
+        boolean passwordValido = passwordHashUtil.verify(password, passwordHash);
 
         if (!passwordValido) {
             log.warn("Contraseña incorrecta para usuario: {}", email);
@@ -100,19 +124,22 @@ public class AuthService {
         tokenUsuarioRepository.save(tokenUsuario);
         log.info("Token guardado en BD para usuario {} con ID de token: {}", email, tokenUsuario.getId());
 
-        log.info("Usuario autenticado exitosamente: {}", email);
+        log.info("Usuario autenticado exitosamente: {} (Plan: {})", email, planNombre);
 
         Map<String, Object> usuarioMap = new LinkedHashMap<>();
         usuarioMap.put("usuarioId", usuarioId);
         usuarioMap.put("name", nombre);
         usuarioMap.put("fullName", (nombre + " " + apellido).trim());
         usuarioMap.put("email", emailBd);
-        usuarioMap.put("plan", "FREE");
+        usuarioMap.put("plan", planNombre); // 🏷️ Usar plan real de la BD
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("token", apiKeyPlano);
         response.put("tipo", "ApiKey");
         response.put("usuario", usuarioMap);
+
+        // 📊 Debug: Mostrar respuesta final que se enviará al frontend
+        log.info("🚀 Respuesta final para frontend: {}", response);
 
         return response;
     }
@@ -168,5 +195,77 @@ public class AuthService {
         log.info("Usuario creado en base de datos: {}", savedUsuario.getEmail());
 
         return savedUsuario;
+    }
+
+    public Map<String, Object> registrarUsuario(String nombre, String apellido, String email, String password, Integer planId) {
+        log.info("Registrando nuevo usuario: {}", email);
+
+        // Hashear contraseña
+        String passwordHash = passwordHashUtil.hash(password);
+
+        // Llamar al SP con usuarioId = null para crear nuevo usuario
+        List<Map<String, Object>> resultado = authSpRepository.guardarOActualizarUsuario(
+                null, // usuarioId null para crear
+                nombre,
+                apellido,
+                email,
+                passwordHash,
+                planId, // puede ser null, el SP asignará FREE
+                null // usuarioAccion null para registro
+        );
+
+        if (resultado.isEmpty()) {
+            throw new RuntimeException("Error al registrar usuario");
+        }
+
+        Map<String, Object> spResult = resultado.get(0);
+        
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("success", true);
+        response.put("usuarioId", spResult.get("UsuarioId"));
+        response.put("planId", spResult.get("PlanId"));
+        response.put("accion", "CREADO");
+        response.put("message", "Usuario registrado exitosamente");
+        response.put("email", email);
+
+        log.info("Usuario registrado exitosamente: {} (ID: {})", email, spResult.get("UsuarioId"));
+        return response;
+    }
+
+    public Map<String, Object> actualizarUsuario(Integer usuarioId, String nombre, String apellido, String email, String password, Integer planId, Integer usuarioAccion) {
+        log.info("Actualizando usuario ID: {}", usuarioId);
+
+        String passwordHash = null;
+        if (password != null && !password.trim().isEmpty()) {
+            passwordHash = passwordHashUtil.hash(password);
+        }
+
+        // Llamar al SP con usuarioId para actualizar
+        List<Map<String, Object>> resultado = authSpRepository.guardarOActualizarUsuario(
+                usuarioId,
+                nombre,
+                apellido,
+                email,
+                passwordHash, // null si no se quiere cambiar password
+                planId, // null si no se quiere cambiar plan
+                usuarioAccion
+        );
+
+        if (resultado.isEmpty()) {
+            throw new RuntimeException("Error al actualizar usuario");
+        }
+
+        Map<String, Object> spResult = resultado.get(0);
+        
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("success", true);
+        response.put("usuarioId", spResult.get("UsuarioId"));
+        response.put("planId", spResult.get("PlanId"));
+        response.put("accion", "ACTUALIZADO");
+        response.put("message", "Usuario actualizado exitosamente");
+        response.put("email", email);
+
+        log.info("Usuario actualizado exitosamente: {} (ID: {})", email, usuarioId);
+        return response;
     }
 }

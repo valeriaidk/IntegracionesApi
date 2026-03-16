@@ -24,13 +24,15 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/v3/api-docs/**",
                     "/swagger-ui/**",
-                    "/swagger-ui.html"
+                    "/swagger-ui.html",
+                    "/api/auth/login",
+                    "/api/auth/register",
+                    "/api/apis-externas/**",
+                    "/actuator/**",
+                    "/",
+                    "/error"
                 ).permitAll()
-                .requestMatchers("/api/auth/login").permitAll()
-                .requestMatchers("/api/apis-externas/**").permitAll()
                 .requestMatchers("/api/**").authenticated()
-                .requestMatchers("/actuator/**").permitAll()
-                .requestMatchers("/", "/error").permitAll()
                 .anyRequest().authenticated()
             );
         

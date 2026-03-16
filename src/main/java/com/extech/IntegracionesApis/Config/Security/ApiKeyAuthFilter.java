@@ -32,6 +32,22 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
+        String requestURI = request.getRequestURI();
+        
+        // Skip validation for public endpoints
+        if (requestURI.startsWith("/api/auth/login") || 
+            requestURI.startsWith("/api/auth/register") ||
+            requestURI.startsWith("/api/apis-externas/") ||
+            requestURI.startsWith("/v3/api-docs") ||
+            requestURI.startsWith("/swagger-ui") ||
+            requestURI.startsWith("/actuator") ||
+            requestURI.equals("/") ||
+            requestURI.equals("/error")) {
+            
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {

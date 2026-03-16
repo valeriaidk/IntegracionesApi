@@ -60,4 +60,34 @@ public class AuthSpRepository {
         String sql = "EXEC dbo.uspObtenerVigentesPorTokenUsuario @UsuarioId = ?";
         return jdbcTemplate.queryForList(sql, usuarioId);
     }
+
+    public List<Map<String, Object>> guardarOActualizarUsuario(
+            Integer usuarioId,
+            String nombre,
+            String apellido,
+            String email,
+            String passwordHash,
+            Integer planId,
+            Integer usuarioAccion
+    ) {
+        String sql = "EXEC dbo.uspIT_UsuarioGuardarActulizar " +
+                "@UsuarioId = ?, " +
+                "@Nombre = ?, " +
+                "@Apellido = ?, " +
+                "@Email = ?, " +
+                "@PasswordHash = ?, " +
+                "@PlanId = ?, " +
+                "@UsuarioAccion = ?";
+
+        return jdbcTemplate.queryForList(
+                sql,
+                usuarioId,
+                nombre,
+                apellido,
+                email,
+                passwordHash,
+                planId,
+                usuarioAccion
+        );
+    }
 }
