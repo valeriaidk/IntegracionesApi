@@ -68,6 +68,11 @@ public class AuthSpRepository {
             String email,
             String passwordHash,
             Integer planId,
+            String telefono,
+            String razonSocial,
+            String ruc,
+            Boolean activo,
+            Boolean eliminado,
             Integer usuarioAccion
     ) {
         String sql = "EXEC dbo.uspIT_UsuarioGuardarActulizar " +
@@ -77,6 +82,11 @@ public class AuthSpRepository {
                 "@Email = ?, " +
                 "@PasswordHash = ?, " +
                 "@PlanId = ?, " +
+                "@Telefono = ?, " +
+                "@RazonSocial = ?, " +
+                "@RUC = ?, " +
+                "@Activo = ?, " +
+                "@Eliminado = ?, " +
                 "@UsuarioAccion = ?";
 
         return jdbcTemplate.queryForList(
@@ -87,6 +97,11 @@ public class AuthSpRepository {
                 email,
                 passwordHash,
                 planId,
+                telefono,
+                razonSocial,
+                ruc,
+                activo,
+                eliminado,
                 usuarioAccion
         );
     }

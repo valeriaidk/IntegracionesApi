@@ -188,7 +188,7 @@ public class AuthService {
         return savedUsuario;
     }
 
-    public Map<String, Object> registrarUsuario(String nombre, String apellido, String email, String password, Integer planId) {
+    public Map<String, Object> registrarUsuario(String nombre, String apellido, String email, String password, Integer planId, String telefono, String razonSocial, String ruc, Boolean activo, Boolean eliminado, Integer usuarioAccion) {
         log.info("Registrando nuevo usuario: {}", email);
 
         // Hashear contraseña
@@ -202,7 +202,12 @@ public class AuthService {
                 email,
                 passwordHash,
                 planId, // puede ser null, el SP asignará FREE
-                null // usuarioAccion null para registro
+                telefono,
+                razonSocial,
+                ruc,
+                activo != null ? activo : true, // por defecto activo = true
+                eliminado != null ? eliminado : false, // por defecto eliminado = false
+                usuarioAccion
         );
 
         if (resultado.isEmpty()) {
@@ -223,7 +228,7 @@ public class AuthService {
         return response;
     }
 
-    public Map<String, Object> actualizarUsuario(Integer usuarioId, String nombre, String apellido, String email, String password, Integer planId, Integer usuarioAccion) {
+    public Map<String, Object> actualizarUsuario(Integer usuarioId, String nombre, String apellido, String email, String password, Integer planId, String telefono, String razonSocial, String ruc, Boolean activo, Boolean eliminado, Integer usuarioAccion) {
         log.info("Actualizando usuario ID: {}", usuarioId);
 
         String passwordHash = null;
@@ -231,7 +236,7 @@ public class AuthService {
             passwordHash = passwordHashUtil.hash(password);
         }
 
-        // Llamar al SP con usuarioId para actualizar
+        // Llamar al SP con todos los parámetros
         List<Map<String, Object>> resultado = authSpRepository.guardarOActualizarUsuario(
                 usuarioId,
                 nombre,
@@ -239,6 +244,11 @@ public class AuthService {
                 email,
                 passwordHash, // null si no se quiere cambiar password
                 planId, // null si no se quiere cambiar plan
+                telefono,
+                razonSocial,
+                ruc,
+                activo,
+                eliminado,
                 usuarioAccion
         );
 
