@@ -61,6 +61,14 @@ public class AuthSpRepository {
         return jdbcTemplate.queryForList(sql, usuarioId);
     }
 
+    /**
+     * 📊 Obtiene la configuración completa del plan con sus límites y funciones
+     */
+    public List<Map<String, Object>> obtenerConfiguracionPlan(Integer planId) {
+        String sql = "EXEC dbo.uspPlanObtenerConfiguracionCompleta @PlanId = ?";
+        return jdbcTemplate.queryForList(sql, planId);
+    }
+
     public List<Map<String, Object>> guardarOActualizarUsuario(
             Integer usuarioId,
             String nombre,
