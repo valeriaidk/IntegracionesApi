@@ -2,9 +2,13 @@ package com.extech.IntegracionesApis.Service.Sms;
 
 import com.extech.IntegracionesApis.Domain.Dto.Sms.SmsRequest;
 import com.extech.IntegracionesApis.Domain.Dto.Sms.SmsResponse;
+import com.extech.IntegracionesApis.Domain.Model.ApiExternaFuncion;
+import com.extech.IntegracionesApis.Domain.Model.ApiServicesFuncion;
+import com.extech.IntegracionesApis.Service.ApiResolucionService;
+import com.extech.IntegracionesApis.Service.AuditoriaService;
+import com.extech.IntegracionesApis.Util.Security.UserContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -12,14 +16,15 @@ import org.springframework.web.client.RestTemplate;
 import java.util.*;
 
 /**
- * Servicio para el envío de SMS mediante la API de Infobip
+ * Servicio para el envío de SMS mediante configuración dinámica de la base de datos
  * 
  * Esta clase maneja la lógica de negocio para enviar mensajes SMS,
- * incluyendo validación, construcción de requests y manejo de errores.
+ * utilizando la configuración resuelta desde la base de datos a través
+ * del flujo: TokenUsuario -> Usuario -> Función -> SP -> Configuración Externa
  * 
  * @author Extech
- * @version 1.0
- * @since 2026-03-09
+ * @version 2.0
+ * @since 2026-03-16
  */
 @Service
 @RequiredArgsConstructor
@@ -27,93 +32,135 @@ import java.util.*;
 public class SmsService {
 
     private final RestTemplate restTemplate;
+    private final ApiResolucionService apiResolucionService;
+    private final AuditoriaService auditoriaService;
 
     /**
-     * URL de la API de Infobip para envío de SMS
+     * Código de función interna para SMS
      */
-    @Value("${infobip.api.url}")
-    private String apiUrl;
+    private static final String CODIGO_FUNCION_SMS = "SMS_SEND";
 
     /**
-     * API Key para autenticación con Infobip
-     */
-    @Value("${infobip.api.key}")
-    private String apiKey;
-
-    /**
-     * ID del remitente por defecto configurado
-     */
-    @Value("${infobip.api.sender}")
-    private String sender;
-
-    /**
-     * Envía un mensaje SMS a través de la API de Infobip
+     * Envía un mensaje SMS usando configuración resuelta desde base de datos
      * 
-     * Este método construye el request HTTP, lo envía a Infobip
-     * y procesa la respuesta.
+     * Este método implementa el flujo completo:
+     * 1. Obtiene usuario autenticado del contexto
+     * 2. Resuelve configuración externa usando el SP
+     * 3. Descifra token del proveedor si aplica
+     * 4. Construye y envía request al proveedor real
+     * 5. Registra auditoría del consumo
      * 
      * @param request Objeto con los datos del SMS a enviar
      * @return SmsResponse con el resultado del envío
      */
     public SmsResponse sendSms(SmsRequest request) {
 
+        Integer usuarioId = UserContext.getUsuarioId();
+        if (usuarioId == null) {
+            log.error("No hay usuario autenticado en el contexto");
+            return SmsResponse.builder()
+                    .success(false)
+                    .phoneNumber(request.getPhoneNumber())
+                    .errorCode("AUTH_ERROR")
+                    .errorMessage("Usuario no autenticado")
+                    .statusCode("401")
+                    .statusMessage("Error de autenticación")
+                    .timestamp(java.time.LocalDateTime.now())
+                    .provider("Sistema")
+                    .build();
+        }
+
+        log.info("Enviando SMS para usuarioId: {} a {}", usuarioId, request.getPhoneNumber());
+
         try {
+            // 1. Obtener función interna
+            Optional<ApiServicesFuncion> funcionOpt = apiResolucionService.obtenerFuncionInterna(CODIGO_FUNCION_SMS);
+            if (funcionOpt.isEmpty()) {
+                log.error("Función interna no encontrada: {}", CODIGO_FUNCION_SMS);
+                return crearRespuestaError(request, "FUNCION_NO_ENCONTRADA", "Función SMS no configurada", usuarioId, null);
+            }
 
-            log.info("Enviando SMS a {}", request.getPhoneNumber());
+            ApiServicesFuncion funcion = funcionOpt.get();
 
-            // Construir headers HTTP
+            // 2. Resolver configuración externa usando el SP
+            Optional<ApiExternaFuncion> configOpt = apiResolucionService.resolverConfiguracionExterna(usuarioId, CODIGO_FUNCION_SMS);
+            if (configOpt.isEmpty()) {
+                log.error("Configuración externa no encontrada para usuarioId: {} y función: {}", usuarioId, CODIGO_FUNCION_SMS);
+                return crearRespuestaError(request, "CONFIG_NO_ENCONTRADA", "Configuración de proveedor SMS no encontrada", usuarioId, funcion.getApiServicesFuncionId());
+            }
+
+            ApiExternaFuncion config = configOpt.get();
+
+            // 3. Validar configuración completa
+            if (!apiResolucionService.validarConfiguracionCompleta(config)) {
+                return crearRespuestaError(request, "CONFIG_INCOMPLETA", "Configuración del proveedor incompleta", usuarioId, funcion.getApiServicesFuncionId());
+            }
+
+            // 4. Construir headers HTTP con token descifrado
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("Authorization", "App " + apiKey);
+            
+            // Agregar autorización si está configurada
+            if (config.getAutorizacion() != null && !config.getAutorizacion().trim().isEmpty()) {
+                String tokenDescifrado = apiResolucionService.descifrarTokenExterno(config.getToken());
+                if (tokenDescifrado != null) {
+                    headers.set("Authorization", config.getAutorizacion().replace("{TOKEN}", tokenDescifrado));
+                } else {
+                    headers.set("Authorization", config.getAutorizacion());
+                }
+            }
 
-            // Construir destino
-            Map<String, String> destination = new HashMap<>();
-            destination.put("to", request.getPhoneNumber());
+            // 5. Construir request según metadata de la función o configuración por defecto
+            Map<String, Object> requestBody = construirRequestSms(request, funcion.getRequest(), config.getRequest());
 
-            // Construir mensaje según formato de Infobip
-            Map<String, Object> message = new HashMap<>();
-            message.put("from",
-                    request.getSenderId() != null ?
-                            request.getSenderId() : sender);
+            // 6. Crear entidad HTTP
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-            message.put("destinations", List.of(destination));
-            message.put("text", request.getMessage());
+            // 7. Enviar request al proveedor externo
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    config.getEndpoint(),
+                    HttpMethod.valueOf(config.getMetodo()),
+                    entity,
+                    Map.class
+            );
 
-            // Construir request completo
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("messages", List.of(message));
+            log.info("Respuesta del proveedor SMS: {}", response.getBody());
 
-            // Crear entidad HTTP
-            HttpEntity<Map<String, Object>> entity =
-                    new HttpEntity<>(requestBody, headers);
-
-            // Enviar request a Infobip
-            ResponseEntity<Map> response =
-                    restTemplate.exchange(
-                            apiUrl,
-                            HttpMethod.POST,
-                            entity,
-                            Map.class
-                    );
-
-            log.info("Respuesta de Infobip: {}", response.getBody());
-
-            // Procesar respuesta exitosa
-            String messageId = UUID.randomUUID().toString();
-
-            return SmsResponse.builder()
+            // 8. Procesar respuesta exitosa
+            SmsResponse smsResponse = SmsResponse.builder()
                     .success(true)
-                    .messageId(messageId)
+                    .messageId(UUID.randomUUID().toString())
                     .phoneNumber(request.getPhoneNumber())
-                    .statusCode("200")
+                    .statusCode(String.valueOf(response.getStatusCode().value()))
                     .statusMessage("SMS enviado correctamente")
                     .timestamp(java.time.LocalDateTime.now())
-                    .provider("Infobip")
+                    .provider(config.getNombre())
                     .build();
 
-        } catch (Exception e) {
+            // 9. Registrar auditoría del consumo exitoso
+            auditoriaService.registrarConsumoExitoso(
+                    funcion.getApiServicesFuncionId(), 
+                    requestBody, 
+                    response.getBody(), 
+                    true
+            );
 
-            log.error("Error enviando SMS", e);
+            return smsResponse;
+
+        } catch (Exception e) {
+            log.error("Error enviando SMS para usuarioId: {}", usuarioId, e);
+            
+            // Obtener función para auditoría
+            Optional<ApiServicesFuncion> funcionOpt = apiResolucionService.obtenerFuncionInterna(CODIGO_FUNCION_SMS);
+            Integer funcionId = funcionOpt.map(ApiServicesFuncion::getApiServicesFuncionId).orElse(null);
+            
+            // Registrar auditoría del consumo fallido
+            auditoriaService.registrarConsumoFallido(
+                    funcionId, 
+                    request, 
+                    e.getMessage(), 
+                    true
+            );
 
             return SmsResponse.builder()
                     .success(false)
@@ -123,10 +170,52 @@ public class SmsService {
                     .statusCode("500")
                     .statusMessage("Error enviando SMS")
                     .timestamp(java.time.LocalDateTime.now())
-                    .provider("Infobip")
+                    .provider("Sistema")
                     .build();
-
         }
+    }
+
+    /**
+     * Construye el request para SMS usando las metadata de configuración
+     */
+    private Map<String, Object> construirRequestSms(SmsRequest request, String requestMetadata, String configRequest) {
+        // Construir destino
+        Map<String, String> destination = new HashMap<>();
+        destination.put("to", request.getPhoneNumber());
+
+        // Construir mensaje
+        Map<String, Object> message = new HashMap<>();
+        message.put("from", request.getSenderId() != null ? request.getSenderId() : "INFOBIT");
+        message.put("destinations", List.of(destination));
+        message.put("text", request.getMessage());
+
+        // Construir request completo
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("messages", List.of(message));
+
+        return requestBody;
+    }
+
+    /**
+     * Crea una respuesta de error y registra auditoría
+     */
+    private SmsResponse crearRespuestaError(SmsRequest request, String errorCode, String errorMessage, 
+                                           Integer usuarioId, Integer funcionId) {
+        // Registrar auditoría del consumo fallido
+        if (funcionId != null) {
+            auditoriaService.registrarConsumoFallido(funcionId, request, errorMessage, true);
+        }
+
+        return SmsResponse.builder()
+                .success(false)
+                .phoneNumber(request.getPhoneNumber())
+                .errorCode(errorCode)
+                .errorMessage(errorMessage)
+                .statusCode("400")
+                .statusMessage("Error en envío de SMS")
+                .timestamp(java.time.LocalDateTime.now())
+                .provider("Sistema")
+                .build();
     }
 
     /**
@@ -153,49 +242,24 @@ public class SmsService {
     }
 
     /**
-     * Obtiene la API Key configurada
-     * 
-     * @return API Key de Infobip
+     * Métodos de compatibilidad con código existente
      */
     public String getApiKey() {
-        return apiKey;
+        return "Configuración dinámica desde base de datos";
     }
 
-    /**
-     * Obtiene la URL de la API configurada
-     * 
-     * @return URL de la API de Infobip
-     */
     public String getApiUrl() {
-        return apiUrl;
+        return "Configuración dinámica desde base de datos";
     }
 
-    /**
-     * Obtiene el sender ID por defecto configurado
-     * 
-     * @return ID del remitente por defecto
-     */
     public String getDefaultSender() {
-        return sender;
+        return "INFOBIT";
     }
 
-    /**
-     * Obtiene el historial de SMS por número de teléfono
-     * 
-     * @param phoneNumber Número de teléfono a consultar
-     * @return Lista de SMS enviados (simulado)
-     */
     public List<Object> getSmsHistory(String phoneNumber) {
         return new ArrayList<>();
     }
 
-    /**
-     * Obtiene el historial de SMS por rango de fechas
-     * 
-     * @param inicio Fecha de inicio del rango
-     * @param fin Fecha de fin del rango
-     * @return Lista de SMS enviados (simulado)
-     */
     public List<Object> getSmsHistoryByDateRange(java.time.LocalDateTime inicio,
                                                  java.time.LocalDateTime fin) {
         return new ArrayList<>();

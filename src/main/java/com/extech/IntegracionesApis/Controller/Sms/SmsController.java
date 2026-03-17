@@ -28,7 +28,7 @@ import java.util.*;
  * 
  * Esta clase expone los endpoints para interactuar con el servicio SMS
  * mediante la API de Infobip.
- * 
+ *
  * @author Extech
  * @version 1.0
  * @since 2026-03-09
@@ -66,8 +66,32 @@ public class SmsController {
     private final SmsService smsService;
 
     /**
+     * Manejo global de errores de validación para este controlador
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        log.error("Error de validación en SMS Request: {}", ex.getMessage());
+        
+        Map<String, String> errors = new HashMap<>();
+        ex.getBindingResult().getAllErrors().forEach((error) -> {
+            String fieldName = ((FieldError) error).getField();
+            String errorMessage = error.getDefaultMessage();
+            errors.put(fieldName, errorMessage);
+        });
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("error", "VALIDATION_ERROR");
+        response.put("message", "Error en la validación de los datos");
+        response.put("validationErrors", errors);
+        response.put("timestamp", LocalDateTime.now());
+        
+        return ResponseEntity.badRequest().body(response);
+    }
+
+    /**
      * Endpoint para probar la conectividad del servicio
-     * 
+     *
      * Este endpoint es útil para verificar que la aplicación
      * está corriendo correctamente y es accesible.
      */

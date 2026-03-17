@@ -3,6 +3,7 @@ package com.extech.IntegracionesApis.Config.Security;
 import com.extech.IntegracionesApis.Domain.Model.TokenUsuario;
 import com.extech.IntegracionesApis.Repository.User.TokenUsuarioRepository;
 import com.extech.IntegracionesApis.Util.Security.PasswordHashUtil;
+import com.extech.IntegracionesApis.Util.Security.UserContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -53,7 +54,12 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String tokenPlano = authHeader.substring(7);
 
-            if (validarToken(tokenPlano)) {
+            Integer usuarioIdValidado = validarTokenYObtenerUsuarioId(tokenPlano);
+            
+            if (usuarioIdValidado != null) {
+                // Establecer el UsuarioId en el contexto para uso posterior
+                UserContext.setUsuarioId(usuarioIdValidado);
+                
                 UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken("user", null, Collections.emptyList());
                 SecurityContextHolder.getContext().setAuthentication(auth);
@@ -65,12 +71,23 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             }
         }
 
-        filterChain.doFilter(request, response);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            // Limpiar el contexto al finalizar la request
+            UserContext.clear();
+        }
     }
 
-    private boolean validarToken(String tokenPlano) {
+    /**
+     * Valida el token y retorna el UsuarioId si es válido
+     * 
+     * @param tokenPlano Token en texto plano del header Authorization
+     * @return UsuarioId si el token es válido, null en caso contrario
+     */
+    private Integer validarTokenYObtenerUsuarioId(String tokenPlano) {
         if (tokenPlano == null || tokenPlano.isEmpty()) {
-            return false;
+            return null;
         }
 
         // Buscar tokens activos y vigentes
@@ -78,10 +95,11 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
         for (TokenUsuario tokenDb : tokensActivos) {
             if (passwordHashUtil.verify(tokenPlano, tokenDb.getTokenValue())) { // Buscar hash en TokenValue
-                return true;
+                log.debug("Token validado correctamente para usuarioId: {}", tokenDb.getUsuarioId());
+                return tokenDb.getUsuarioId();
             }
         }
 
-        return false;
+        return null;
     }
 }
