@@ -27,12 +27,12 @@ public class SecurityConfig {
                     "/swagger-ui.html",
                     "/api/auth/login",
                     "/api/auth/register",
+                    "/api/auth/actualizar",
                     "/api/apis-externas/**",
                     "/actuator/**",
                     "/",
                     "/error"
                 ).permitAll()
-                .requestMatchers("/api/**").authenticated()
                 .anyRequest().authenticated()
             );
         
