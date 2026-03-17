@@ -74,34 +74,4 @@ public class AuthController {
 
         return ResponseEntity.ok(authService.actualizarUsuario(usuarioId, nombre, apellido, email, password, planId, telefono, razonSocial, ruc, activo, eliminado, usuarioAccion));
     }
-
-    @PostMapping("/generar-token")
-    public ResponseEntity<?> generarNuevoToken(@RequestBody Map<String, Object> body) {
-        System.out.println("🔄 Endpoint /generar-token llamado");
-        System.out.println("📋 Body recibido: " + body);
-        
-        Integer usuarioId = body.get("usuarioId") != null ? ((Number) body.get("usuarioId")).intValue() : null;
-        
-        System.out.println("👤 UsuarioId extraído: " + usuarioId);
-        
-        if (usuarioId == null) {
-            return ResponseEntity.badRequest().body(Map.of(
-                "success", false,
-                "message", "usuarioId es requerido"
-            ));
-        }
-        
-        try {
-            Map<String, Object> resultado = authService.generarNuevoToken(usuarioId);
-            System.out.println("✅ Token generado exitosamente");
-            return ResponseEntity.ok(resultado);
-        } catch (Exception e) {
-            System.out.println("❌ Error generando token: " + e.getMessage());
-            e.printStackTrace();
-            return ResponseEntity.badRequest().body(Map.of(
-                "success", false,
-                "message", "Error generando nuevo token: " + e.getMessage()
-            ));
-        }
-    }
 }
