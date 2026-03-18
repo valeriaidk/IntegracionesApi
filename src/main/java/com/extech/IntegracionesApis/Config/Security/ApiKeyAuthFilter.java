@@ -107,7 +107,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         log.info("🔍 Buscando token para validar: {} (longitud: {})", tokenPlano.substring(0, Math.min(10, tokenPlano.length())) + "...", tokenPlano.length());
 
         // Buscar tokens activos y vigentes
-        List<TokenUsuario> tokensActivos = tokenUsuarioRepository.findByActivoTrueAndEliminadoFalseAndFechaFinVigenciaGreaterThan(LocalDateTime.now());
+        List<TokenUsuario> tokensActivos = tokenUsuarioRepository.findByActivoTrueAndEliminadoFalseAndFechaFinVigenciaAfter(LocalDateTime.now());
         
         log.info("🔍 Tokens encontrados en BD: {}", tokensActivos.size());
 
