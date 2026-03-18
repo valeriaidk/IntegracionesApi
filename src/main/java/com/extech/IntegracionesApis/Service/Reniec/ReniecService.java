@@ -149,12 +149,12 @@ public class ReniecService {
             // 7. Procesar respuesta
             String respuestaJson = response.getBody() != null ? response.getBody().toString() : "{}";
 
-            // 8. Auditoría (si no hay ApiServicesFuncionId, se registra sin función)
+            // 8. Auditoría (consulta externa)
             auditoriaService.registrarConsumoExitoso(
                     apiServicesFuncionId,
                     requestBody,
                     response.getBody(),
-                    true
+                    true  // EsConsulta = true para consulta externa RENIEC
             );
 
             return respuestaJson;
@@ -162,14 +162,14 @@ public class ReniecService {
         } catch (Exception e) {
             log.error("Error consultando {} para usuarioId: {}", tipoDocumento, usuarioId, e);
 
-            // Registrar auditoría del consumo fallido sin función interna
+            // Registrar auditoría del consumo fallido (consulta externa)
             auditoriaService.registrarConsumoFallido(
                     apiResolucionService.obtenerFuncionInterna(codigoFuncion)
                             .map(ApiServicesFuncion::getApiServicesFuncionId)
                             .orElse(null),
                     Map.of("tipo", tipoDocumento, "numero", numeroDocumento),
                     e.getMessage(),
-                    true
+                    true  // EsConsulta = true para consulta externa RENIEC
             );
 
             throw new Exception("Error consultando " + tipoDocumento + ": " + e.getMessage());

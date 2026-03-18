@@ -54,8 +54,8 @@ public class AuditoriaService {
      * @param apiServicesFuncionId ID de la función interna consumida
      * @param request Request enviado al proveedor externo
      * @param response Response recibido del proveedor externo
-     * @param exito Indica si el consumo fue exitoso
-     * @param esConsulta Indica si es una consulta (true) o una mutación (false)
+     * @param exito Indica si el consumo fue exitoso (se sobreescribirá si hay error en response)
+     * @param esConsulta Indica si es una consulta externa (true) o interna (false)
      * @param errorMessage Mensaje de error (solo si exito es false)
      */
     private void registrarConsumo(Integer apiServicesFuncionId, Object request, Object response, 
@@ -77,8 +77,13 @@ public class AuditoriaService {
 
             Consumo consumo = new Consumo();
             consumo.setUsuarioId(usuarioId);
+            consumo.setUsuarioRegistro(usuarioId);  // Establecer usuario que registra el consumo
             consumo.setApiServicesFuncionId(apiServicesFuncionId);
-            consumo.setExito(exito);
+            
+            // Determinar automáticamente si la respuesta contiene error
+            boolean exitoFinal = determinarExitoRespuesta(response, exito, errorMessage);
+            consumo.setExito(exitoFinal);
+            
             consumo.setEsConsulta(esConsulta);
             consumo.setActivo(true);
             consumo.setEliminado(false);
@@ -149,8 +154,13 @@ public class AuditoriaService {
 
             Consumo consumo = new Consumo();
             consumo.setUsuarioId(usuarioId);
+            consumo.setUsuarioRegistro(usuarioId);  // Establecer usuario que registra el consumo
             consumo.setApiServicesFuncionId(apiServicesFuncionId);
-            consumo.setExito(exito);
+            
+            // Determinar automáticamente si la respuesta contiene error
+            boolean exitoFinal = determinarExitoRespuesta(responseString, exito, null);
+            consumo.setExito(exitoFinal);
+            
             consumo.setEsConsulta(esConsulta);
             consumo.setActivo(true);
             consumo.setEliminado(false);
@@ -174,5 +184,42 @@ public class AuditoriaService {
         } catch (Exception e) {
             log.error("Error registrando consumo en auditoría", e);
         }
+    }
+    
+    /**
+     * Determina si una respuesta es exitosa basándose en su contenido
+     * @param response Respuesta del proveedor externo
+     * @param exitoParam Valor de éxito pasado por parámetro
+     * @param errorMessage Mensaje de error (si existe)
+     * @return true si la respuesta es exitosa, false si contiene error
+     */
+    private boolean determinarExitoRespuesta(Object response, boolean exitoParam, String errorMessage) {
+        // Si hay un mensaje de error explícito, es fallido
+        if (errorMessage != null && !errorMessage.trim().isEmpty()) {
+            return false;
+        }
+        
+        // Si la respuesta es null o vacía, es fallido
+        if (response == null) {
+            return false;
+        }
+        
+        // Convertir respuesta a String para analizar
+        String responseStr = response.toString().toLowerCase();
+        
+        // Detectar patrones de error comunes en la respuesta
+        if (responseStr.contains("error") || 
+            responseStr.contains("exception") || 
+            responseStr.contains("failed") ||
+            responseStr.contains("timeout") ||
+            responseStr.contains("unauthorized") ||
+            responseStr.contains("forbidden") ||
+            responseStr.contains("not found") ||
+            responseStr.contains("internal server error")) {
+            return false;
+        }
+        
+        // Si no se detectan errores y el parámetro exito es true, es exitoso
+        return exitoParam;
     }
 }

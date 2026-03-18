@@ -137,12 +137,12 @@ public class SmsService {
                     .provider(config.getNombre())
                     .build();
 
-            // 9. Registrar auditoría del consumo exitoso
+            // 9. Registrar auditoría del consumo exitoso (consulta externa)
             auditoriaService.registrarConsumoExitoso(
                     funcion.getApiServicesFuncionId(), 
                     requestBody, 
                     response.getBody(), 
-                    true
+                    true  // EsConsulta = true para consulta externa SMS
             );
 
             return smsResponse;
@@ -154,12 +154,12 @@ public class SmsService {
             Optional<ApiServicesFuncion> funcionOpt = apiResolucionService.obtenerFuncionInterna(CODIGO_FUNCION_SMS);
             Integer funcionId = funcionOpt.map(ApiServicesFuncion::getApiServicesFuncionId).orElse(null);
             
-            // Registrar auditoría del consumo fallido
+            // Registrar auditoría del consumo fallido (consulta externa)
             auditoriaService.registrarConsumoFallido(
                     funcionId, 
                     request, 
                     e.getMessage(), 
-                    true
+                    true  // EsConsulta = true para consulta externa SMS
             );
 
             return SmsResponse.builder()
@@ -201,9 +201,9 @@ public class SmsService {
      */
     private SmsResponse crearRespuestaError(SmsRequest request, String errorCode, String errorMessage, 
                                            Integer usuarioId, Integer funcionId) {
-        // Registrar auditoría del consumo fallido
+        // Registrar auditoría del consumo fallido (consulta externa)
         if (funcionId != null) {
-            auditoriaService.registrarConsumoFallido(funcionId, request, errorMessage, true);
+            auditoriaService.registrarConsumoFallido(funcionId, request, errorMessage, true);  // EsConsulta = true para consulta externa SMS
         }
 
         return SmsResponse.builder()

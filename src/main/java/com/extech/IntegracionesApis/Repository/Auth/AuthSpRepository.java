@@ -19,6 +19,27 @@ public class AuthSpRepository {
         return jdbcTemplate.queryForList(sql, email);
     }
 
+    /**
+     * 📊 Obtiene datos completos del usuario incluyendo fechaRegistro
+     */
+    public List<Map<String, Object>> obtenerDatosCompletosUsuario(Integer usuarioId) {
+        String sql = "SELECT " +
+                "u.UsuarioId, " +
+                "u.Nombre, " +
+                "u.Apellido, " +
+                "u.Email, " +
+                "FORMAT(u.FechaRegistro, 'yyyy-MM-dd HH:mm:ss') as FechaRegistro, " +
+                "u.Activo, " +
+                "u.Eliminado, " +
+                "ISNULL(p.PlanId, 1) as PlanId, " +
+                "ISNULL(p.Nombre, 'FREE') as PlanNombre " +
+                "FROM dbo.IT_Usuario u " +
+                "LEFT JOIN dbo.IT_Plan p ON u.PlanId = p.PlanId " +
+                "WHERE u.UsuarioId = ? " +
+                "AND ISNULL(u.Eliminado, 0) = 0";
+        return jdbcTemplate.queryForList(sql, usuarioId);
+    }
+
     public Integer insertarTokenUsuario(
             Integer usuarioId,
             String tokenHash,

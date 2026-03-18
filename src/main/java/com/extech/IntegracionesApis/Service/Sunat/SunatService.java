@@ -144,12 +144,12 @@ public class SunatService {
             // 8. Procesar respuesta y crear SunatResponse
             SunatResponse sunatResponse = procesarRespuestaSunat(response.getBody(), numeroRuc);
 
-            // 9. Registrar auditoría del consumo exitoso
+            // 9. Registrar auditoría del consumo exitoso (consulta externa)
             auditoriaService.registrarConsumoExitoso(
                     funcion.getApiServicesFuncionId(), 
                     requestBody, 
                     response.getBody(), 
-                    true
+                    true  // EsConsulta = true para consulta externa SUNAT
             );
 
             return sunatResponse;
@@ -161,13 +161,13 @@ public class SunatService {
             Optional<ApiServicesFuncion> funcionOpt = apiResolucionService.obtenerFuncionInterna(codigoFuncion);
             Integer funcionId = funcionOpt.map(ApiServicesFuncion::getApiServicesFuncionId).orElse(null);
             
-            // Registrar auditoría del consumo fallido
+            // Registrar auditoría del consumo fallido (consulta externa)
             if (funcionId != null) {
                 auditoriaService.registrarConsumoFallido(
                         funcionId, 
                         Map.of("ruc", numeroRuc), 
                         e.getMessage(), 
-                        true
+                        true  // EsConsulta = true para consulta externa SUNAT
                 );
             }
 

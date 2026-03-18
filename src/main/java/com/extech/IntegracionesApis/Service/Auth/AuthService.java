@@ -65,6 +65,10 @@ public class AuthService {
         }
 
         Map<String, Object> row = rows.get(0);
+        
+        // 🐛 Debug: Mostrar todos los campos que devuelve el SP
+        log.info("Campos devueltos por uspUsuarioValidarAcceso: {}", row.keySet());
+        log.info("Valores devueltos: {}", row);
 
         Integer usuarioId = row.get("UsuarioId") != null ? ((Number) row.get("UsuarioId")).intValue() : null;
         String nombre = row.get("Nombre") != null ? row.get("Nombre").toString() : "";
@@ -92,6 +96,11 @@ public class AuthService {
 
         Boolean activo = row.get("Activo") != null && Boolean.parseBoolean(row.get("Activo").toString());
         Boolean eliminado = row.get("Eliminado") != null && Boolean.parseBoolean(row.get("Eliminado").toString());
+        
+        // 🐛 Debug: Verificar campos específicos
+        log.info("FechaRegistro del SP: {}", row.get("FechaRegistro"));
+        log.info("Activo del SP: {}", row.get("Activo"));
+        log.info("Eliminado del SP: {}", row.get("Eliminado"));
 
         if (!Boolean.TRUE.equals(activo) || Boolean.TRUE.equals(eliminado)) {
             log.warn("Usuario inactivo o eliminado: {}", email);
@@ -104,6 +113,26 @@ public class AuthService {
             log.warn("Contraseña incorrecta para usuario: {}", email);
             throw new RuntimeException("Credenciales inválidas");
         }
+
+        // 📊 Obtener datos completos del usuario incluyendo fechaRegistro
+        Map<String, Object> datosUsuario = row;
+        try {
+            List<Map<String, Object>> datosCompletos = authSpRepository.obtenerDatosCompletosUsuario(usuarioId);
+            if (datosCompletos != null && !datosCompletos.isEmpty()) {
+                datosUsuario = datosCompletos.get(0);
+                log.info("Datos completos obtenidos exitosamente para usuarioId: {}", usuarioId);
+            } else {
+                log.warn("No se encontraron datos completos para usuarioId: {}, usando datos del SP", usuarioId);
+            }
+        } catch (Exception e) {
+            log.error("Error obteniendo datos completos del usuario {}: {}, usando datos del SP", usuarioId, e.getMessage());
+            // Continuar con los datos del SP original
+        }
+        
+        // 🐛 Debug: Verificar datos completos
+        log.info("Datos finales del usuario: {}", datosUsuario.keySet());
+        log.info("FechaRegistro final: {}", datosUsuario.get("FechaRegistro"));
+        log.info("Activo final: {}", datosUsuario.get("Activo"));
 
         LocalDateTime ahora = LocalDateTime.now();
         LocalDateTime vence = ahora.plusMonths(1);
@@ -183,6 +212,12 @@ public class AuthService {
         usuarioMap.put("email", emailBd);
         usuarioMap.put("plan", planNombre); // 🏷️ Plan real de la BD
         usuarioMap.put("planConfig", planConfig); // 📊 Configuración completa del plan
+        usuarioMap.put("fechaRegistro", datosUsuario.get("FechaRegistro")); // 📅 Fecha de registro desde datos completos
+        usuarioMap.put("activo", datosUsuario.get("Activo")); // ✅ Estado desde datos completos
+        
+        // 🐛 Debug: Verificar valores finales
+        log.info("fechaRegistro en usuarioMap: {}", usuarioMap.get("fechaRegistro"));
+        log.info("activo en usuarioMap: {}", usuarioMap.get("activo"));
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("token", apiKeyPlano);
