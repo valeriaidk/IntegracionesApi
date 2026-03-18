@@ -12,5 +12,5 @@ import java.util.Optional;
 public interface TokenUsuarioRepository extends JpaRepository<TokenUsuario, Integer> {
     Optional<TokenUsuario> findByUsuarioIdAndActivoTrue(Integer usuarioId);
     List<TokenUsuario> findByUsuarioId(Integer usuarioId);
-    List<TokenUsuario> findByActivoTrueAndFechaFinVigenciaBefore(LocalDateTime fecha);
+    List<TokenUsuario> findByActivoTrueAndEliminadoFalseAndFechaFinVigenciaAfter(LocalDateTime fecha);
 }

@@ -104,14 +104,21 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             return null;
         }
 
+        log.info("🔍 Buscando token para validar: {} (longitud: {})", tokenPlano.substring(0, Math.min(10, tokenPlano.length())) + "...", tokenPlano.length());
+
         // Buscar tokens activos y vigentes
-        List<TokenUsuario> tokensActivos = tokenUsuarioRepository.findByActivoTrueAndFechaFinVigenciaBefore(LocalDateTime.now().plusYears(10));
+        List<TokenUsuario> tokensActivos = tokenUsuarioRepository.findByActivoTrueAndEliminadoFalseAndFechaFinVigenciaGreaterThan(LocalDateTime.now());
+        
+        log.info("🔍 Tokens encontrados en BD: {}", tokensActivos.size());
 
         for (TokenUsuario tokenDb : tokensActivos) {
             String stored = tokenDb.getApiKey();
             if (stored == null || stored.isEmpty()) {
+                log.warn("🔍 Token {} tiene apiKey nulo o vacío", tokenDb.getId());
                 continue;
             }
+
+            log.debug("🔍 Analizando token {} - stored length: {}", tokenDb.getId(), stored.length());
 
             // Formato esperado: "<hash>::<apiKeyEncriptadoBase64>"
             String hashPart = stored;
@@ -120,12 +127,17 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
                 hashPart = stored.substring(0, sepIdx);
             }
 
+            log.debug("🔍 Hash extraído: {}...", hashPart.substring(0, Math.min(20, hashPart.length())));
+
             if (passwordHashUtil.verify(tokenPlano, hashPart)) { // Verificar contra hash almacenado
-                log.debug("Token validado correctamente para usuarioId: {}", tokenDb.getUsuarioId());
+                log.info("✅ Token validado correctamente para usuarioId: {}", tokenDb.getUsuarioId());
                 return tokenDb.getUsuarioId();
+            } else {
+                log.debug("❌ Token no coincide para usuarioId: {}", tokenDb.getUsuarioId());
             }
         }
 
+        log.warn("❌ No se encontró token válido para el token proporcionado");
         return null;
     }
 }

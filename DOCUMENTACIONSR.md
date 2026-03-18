@@ -2623,7 +2623,7 @@ curl -X GET "http://localhost:8080/api/reniec/consultar/DNI/72537503" \
 **Esta implementación demuestra cómo construir una API Gateway enterprise con seguridad, flexibilidad y escalabilidad, conectando servicios internos con APIs externas de forma robusta y mantenible.**
 
 ---
-
+-------------------------------------
 # 📱 **IMPLEMENTACIÓN DE SERVICIO SMS**
 
 ## 📅 **Fecha de Implementación**: 18 de Marzo de 2026
@@ -2742,7 +2742,7 @@ GO
 ```
 
 ---
-
+-------------------------------------------
 ## 🔄 **Flujo Completo del Servicio SMS**
 
 ### **📊 Paso 1: Verificación de Configuración SMS**
