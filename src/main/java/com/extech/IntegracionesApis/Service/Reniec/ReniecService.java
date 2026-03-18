@@ -80,15 +80,7 @@ public class ReniecService {
         log.info("Consultando {} para usuarioId: {} - {}", tipoDocumento, usuarioId, numeroDocumento);
 
         try {
-            // 1. Obtener función interna
-            Optional<ApiServicesFuncion> funcionOpt = apiResolucionService.obtenerFuncionInterna(codigoFuncion);
-            if (funcionOpt.isEmpty()) {
-                throw new Exception("Función " + codigoFuncion + " no configurada");
-            }
-
-            ApiServicesFuncion funcion = funcionOpt.get();
-
-            // 2. Resolver configuración externa usando el SP
+            // 1. Resolver configuración externa usando el SP (basado en usuario + código de función)
             Optional<ApiExternaFuncion> configOpt = apiResolucionService.resolverConfiguracionExterna(usuarioId, codigoFuncion);
             if (configOpt.isEmpty()) {
                 throw new Exception("Configuración de proveedor RENIEC no encontrada para usuario: " + usuarioId);
@@ -96,49 +88,72 @@ public class ReniecService {
 
             ApiExternaFuncion config = configOpt.get();
 
-            // 3. Validar configuración completa
+            // Función interna (opcional) solo para auditoría
+            Integer apiServicesFuncionId = apiResolucionService
+                    .obtenerFuncionInterna(codigoFuncion)
+                    .map(ApiServicesFuncion::getApiServicesFuncionId)
+                    .orElse(null);
+
+            // 2. Validar configuración completa
             if (!apiResolucionService.validarConfiguracionCompleta(config)) {
                 throw new Exception("Configuración del proveedor RENIEC incompleta");
             }
 
-            // 4. Construir headers HTTP con token descifrado
+            // 3. Construir headers HTTP con token descifrado
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             
             // Agregar autorización si está configurada
             if (config.getAutorizacion() != null && !config.getAutorizacion().trim().isEmpty()) {
                 String tokenDescifrado = apiResolucionService.descifrarTokenExterno(config.getToken());
-                if (tokenDescifrado != null) {
-                    headers.set("Authorization", config.getAutorizacion().replace("{TOKEN}", tokenDescifrado));
+                String authCfg = config.getAutorizacion().trim();
+                if (tokenDescifrado != null && !tokenDescifrado.isEmpty()) {
+                    if (authCfg.contains("{TOKEN}")) {
+                        headers.set("Authorization", authCfg.replace("{TOKEN}", tokenDescifrado));
+                    } else if ("BEARER".equalsIgnoreCase(authCfg)) {
+                        headers.set("Authorization", "Bearer " + tokenDescifrado);
+                    } else {
+                        // Si solo viene un prefijo u otro formato, concatenar token al final
+                        headers.set("Authorization", authCfg + " " + tokenDescifrado);
+                    }
                 } else {
-                    headers.set("Authorization", config.getAutorizacion());
+                    headers.set("Authorization", authCfg);
                 }
             }
 
-            // 5. Construir request según metadata de la función
-            Map<String, Object> requestBody = construirRequestReniec(numeroDocumento, tipoDocumento, funcion.getRequest(), config.getRequest());
+            // 4. Construir request (por ahora básico; config.request puede usarse para personalizar)
+            Map<String, Object> requestBody = construirRequestReniec(numeroDocumento, tipoDocumento, null, config.getRequest());
 
-            // 6. Crear entidad HTTP
+            // 5. Crear entidad HTTP
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-            // 7. Enviar request al proveedor externo
+            // 6. Enviar request al proveedor externo
+            String url = config.getEndpoint();
+            HttpMethod method = HttpMethod.valueOf(config.getMetodo());
+            if (method == HttpMethod.GET && url != null) {
+                // Proveedores tipo DeColecta suelen exponer ...?numero= y esperan concatenación del valor
+                if (url.endsWith("=")) {
+                    url = url + numeroDocumento;
+                }
+            }
+
             ResponseEntity<Map> response = restTemplate.exchange(
-                    config.getEndpoint(),
-                    HttpMethod.valueOf(config.getMetodo()),
+                    url,
+                    method,
                     entity,
                     Map.class
             );
 
             log.info("Respuesta de RENIEC para {}: {}", tipoDocumento, response.getBody());
 
-            // 8. Procesar respuesta
+            // 7. Procesar respuesta
             String respuestaJson = response.getBody() != null ? response.getBody().toString() : "{}";
 
-            // 9. Registrar auditoría del consumo exitoso
+            // 8. Auditoría (si no hay ApiServicesFuncionId, se registra sin función)
             auditoriaService.registrarConsumoExitoso(
-                    funcion.getApiServicesFuncionId(), 
-                    requestBody, 
-                    response.getBody(), 
+                    apiServicesFuncionId,
+                    requestBody,
+                    response.getBody(),
                     true
             );
 
@@ -146,20 +161,16 @@ public class ReniecService {
 
         } catch (Exception e) {
             log.error("Error consultando {} para usuarioId: {}", tipoDocumento, usuarioId, e);
-            
-            // Obtener función para auditoría
-            Optional<ApiServicesFuncion> funcionOpt = apiResolucionService.obtenerFuncionInterna(codigoFuncion);
-            Integer funcionId = funcionOpt.map(ApiServicesFuncion::getApiServicesFuncionId).orElse(null);
-            
-            // Registrar auditoría del consumo fallido
-            if (funcionId != null) {
-                auditoriaService.registrarConsumoFallido(
-                        funcionId, 
-                        Map.of("tipo", tipoDocumento, "numero", numeroDocumento), 
-                        e.getMessage(), 
-                        true
-                );
-            }
+
+            // Registrar auditoría del consumo fallido sin función interna
+            auditoriaService.registrarConsumoFallido(
+                    apiResolucionService.obtenerFuncionInterna(codigoFuncion)
+                            .map(ApiServicesFuncion::getApiServicesFuncionId)
+                            .orElse(null),
+                    Map.of("tipo", tipoDocumento, "numero", numeroDocumento),
+                    e.getMessage(),
+                    true
+            );
 
             throw new Exception("Error consultando " + tipoDocumento + ": " + e.getMessage());
         }

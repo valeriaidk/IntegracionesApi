@@ -11,4 +11,6 @@ import java.util.Optional;
 public interface ApiExternaFuncionRepository extends JpaRepository<ApiExternaFuncion, Integer> {
     Optional<ApiExternaFuncion> findByNombreAndActivoTrue(String nombre);
     List<ApiExternaFuncion> findByActivoTrue();
+    Optional<ApiExternaFuncion> findByCodigoAndActivoTrueAndEliminadoFalse(String codigo);
+    Optional<ApiExternaFuncion> findByApiExternaFuncionIdAndActivoTrueAndEliminadoFalse(Integer apiExternaFuncionId);
 }

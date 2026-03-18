@@ -62,6 +62,12 @@ public class AuditoriaService {
                                  boolean exito, boolean esConsulta, String errorMessage) {
         
         try {
+            if (apiServicesFuncionId == null) {
+                // La BD requiere ApiServicesFuncionId NOT NULL. Si no hay función interna, no registramos auditoría.
+                log.warn("Auditoría omitida: ApiServicesFuncionId es null (BD no permite null)");
+                return;
+            }
+
             // Obtener el usuarioId del contexto de seguridad
             Integer usuarioId = UserContext.getUsuarioId();
             if (usuarioId == null) {

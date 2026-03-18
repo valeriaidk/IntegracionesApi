@@ -1,7 +1,7 @@
 package com.extech.IntegracionesApis.Repository;
 
 import com.extech.IntegracionesApis.Domain.Model.ApiExternaFuncion;
-import com.extech.IntegracionesApis.Domain.Model.ApiServicesFuncion;
+import com.extech.IntegracionesApis.Repository.ApiExternaResolucionProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,7 +13,7 @@ import java.util.Optional;
 public interface ApiConfiguracionRepository extends JpaRepository<ApiExternaFuncion, Integer> {
 
     /**
-     * Ejecuta el stored procedure uspObtenerConfiguracionApiExternaPorUsuario
+     * Ejecuta el stored procedure dbo.uspResolverApiExternaPorUsuarioYFuncion
      * para obtener la configuración completa del proveedor externo
      * 
      * @param usuarioId ID del usuario autenticado
@@ -21,20 +21,10 @@ public interface ApiConfiguracionRepository extends JpaRepository<ApiExternaFunc
      * @return Configuración completa del proveedor externo o empty si no encuentra
      */
     @Query(value = """
-        EXEC uspObtenerConfiguracionApiExternaPorUsuario 
-        @UsuarioId = :usuarioId, 
-        @CodigoFuncion = :codigoFuncion
+        EXEC dbo.uspResolverApiExternaPorUsuarioYFuncion ?1, ?2
         """, nativeQuery = true)
-    Optional<ApiExternaFuncion> obtenerConfiguracionPorUsuarioYFuncion(
-            @Param("usuarioId") Integer usuarioId, 
-            @Param("codigoFuncion") String codigoFuncion
+    Optional<ApiExternaResolucionProjection> obtenerConfiguracionPorUsuarioYFuncion(
+            Integer usuarioId,
+            String codigoFuncion
     );
-
-    /**
-     * Obtiene la función interna por su código
-     * 
-     * @param codigo Código de la función interna
-     * @return Función interna o empty si no encuentra
-     */
-    Optional<ApiServicesFuncion> findByCodigoAndActivoTrue(String codigo);
 }
