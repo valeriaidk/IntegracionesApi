@@ -103,10 +103,17 @@ public class SunatService {
             // Agregar autorización si está configurada
             if (config.getAutorizacion() != null && !config.getAutorizacion().trim().isEmpty()) {
                 String tokenDescifrado = apiResolucionService.descifrarTokenExterno(config.getToken());
-                if (tokenDescifrado != null) {
-                    headers.set("Authorization", config.getAutorizacion().replace("{TOKEN}", tokenDescifrado));
+                String authCfg = config.getAutorizacion().trim();
+                if (tokenDescifrado != null && !tokenDescifrado.isEmpty()) {
+                    if (authCfg.contains("{TOKEN}")) {
+                        headers.set("Authorization", authCfg.replace("{TOKEN}", tokenDescifrado));
+                    } else if ("BEARER".equalsIgnoreCase(authCfg)) {
+                        headers.set("Authorization", "Bearer " + tokenDescifrado);
+                    } else {
+                        headers.set("Authorization", authCfg + " " + tokenDescifrado);
+                    }
                 } else {
-                    headers.set("Authorization", config.getAutorizacion());
+                    headers.set("Authorization", authCfg);
                 }
             }
 
@@ -117,9 +124,17 @@ public class SunatService {
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
             // 7. Enviar request al proveedor externo
+            String url = config.getEndpoint();
+            HttpMethod method = HttpMethod.valueOf(config.getMetodo());
+            if (method == HttpMethod.GET && url != null) {
+                if (url.endsWith("=")) {
+                    url = url + numeroRuc;
+                }
+            }
+
             ResponseEntity<Map> response = restTemplate.exchange(
-                    config.getEndpoint(),
-                    HttpMethod.valueOf(config.getMetodo()),
+                    url,
+                    method,
                     entity,
                     Map.class
             );
@@ -183,16 +198,72 @@ public class SunatService {
         SunatResponse response = new SunatResponse();
         
         if (responseMap != null) {
-            // Mapear campos según la respuesta del proveedor
-            // Estos nombres de campos deben ajustarse según la respuesta real del proveedor SUNAT
-            response.setNumero_documento(numeroRuc);
-            response.setRazon_social(extractString(responseMap, "razonSocial", "EMPRESA CONSULTADA"));
-            response.setEstado(extractString(responseMap, "estado", "ACTIVO"));
-            response.setCondicion(extractString(responseMap, "condicion", "HABIDO"));
-            response.setDireccion(extractString(responseMap, "direccion", "DIRECCIÓN NO DISPONIBLE"));
-            response.setDistrito(extractString(responseMap, "distrito", "LIMA"));
-            response.setProvincia(extractString(responseMap, "provincia", "LIMA"));
-            response.setDepartamento(extractString(responseMap, "departamento", "LIMA"));
+            // Mapear campos según la respuesta real del proveedor (DeColecta usa snake_case)
+            response.setNumero_documento(extractFirstString(responseMap, numeroRuc,
+                    "numero_documento", "numeroDocumento", "ruc", "numeroRuc"));
+
+            response.setRazon_social(extractFirstString(responseMap, null,
+                    "razon_social", "razonSocial", "razonSocialEmpresa", "razon"));
+
+            response.setEstado(extractFirstString(responseMap, null,
+                    "estado", "Estado"));
+
+            response.setCondicion(extractFirstString(responseMap, null,
+                    "condicion", "Condicion"));
+
+            response.setDireccion(extractFirstString(responseMap, null,
+                    "direccion", "dirección", "Direccion"));
+
+            response.setUbigeo(extractFirstString(responseMap, null,
+                    "ubigeo", "Ubigeo"));
+
+            response.setVia_tipo(extractFirstString(responseMap, null,
+                    "via_tipo", "viaTipo"));
+            response.setVia_nombre(extractFirstString(responseMap, null,
+                    "via_nombre", "viaNombre"));
+            response.setZona_codigo(extractFirstString(responseMap, null,
+                    "zona_codigo", "zonaCodigo"));
+            response.setZona_tipo(extractFirstString(responseMap, null,
+                    "zona_tipo", "zonaTipo"));
+
+            response.setNumero(extractFirstString(responseMap, null,
+                    "numero", "Numero"));
+            response.setInterior(extractFirstString(responseMap, null,
+                    "interior", "Interior"));
+            response.setLote(extractFirstString(responseMap, null,
+                    "lote", "Lote"));
+            response.setDpto(extractFirstString(responseMap, null,
+                    "dpto", "departamento_interior", "dptoInterior"));
+            response.setManzana(extractFirstString(responseMap, null,
+                    "manzana", "Manzana"));
+            response.setKilometro(extractFirstString(responseMap, null,
+                    "kilometro", "Kilometro"));
+
+            response.setDistrito(extractFirstString(responseMap, null,
+                    "distrito", "Distrito"));
+            response.setProvincia(extractFirstString(responseMap, null,
+                    "provincia", "Provincia"));
+            response.setDepartamento(extractFirstString(responseMap, null,
+                    "departamento", "Departamento"));
+
+            response.setEs_agente_retencion(extractFirstBoolean(responseMap,
+                    "es_agente_retencion", "esAgenteRetencion"));
+            response.setEs_buen_contribuyente(extractFirstBoolean(responseMap,
+                    "es_buen_contribuyente", "esBuenContribuyente"));
+
+            response.setTipo(extractFirstString(responseMap, null,
+                    "tipo", "Tipo"));
+            response.setActividad_economica(extractFirstString(responseMap, null,
+                    "actividad_economica", "actividadEconomica"));
+            response.setNumero_trabajadores(extractFirstString(responseMap, null,
+                    "numero_trabajadores", "numeroTrabajadores"));
+            response.setTipo_facturacion(extractFirstString(responseMap, null,
+                    "tipo_facturacion", "tipoFacturacion"));
+            response.setTipo_contabilidad(extractFirstString(responseMap, null,
+                    "tipo_contabilidad", "tipoContabilidad"));
+            response.setComercio_exterior(extractFirstString(responseMap, null,
+                    "comercio_exterior", "comercioExterior"));
+
             response.setTipoConsulta("RUC");
             response.setLimiteConsultas(100);
             response.setMensaje("Consulta exitosa");
@@ -214,11 +285,36 @@ public class SunatService {
     /**
      * Método utilitario para extraer valores del mapa de respuesta
      */
-    private String extractString(Map map, String key, String defaultValue) {
-        if (map != null && map.containsKey(key)) {
-            Object value = map.get(key);
-            return value != null ? value.toString() : defaultValue;
+    private String extractFirstString(Map map, String defaultValue, String... keys) {
+        if (map == null || keys == null) return defaultValue;
+        for (String key : keys) {
+            if (key == null) continue;
+            if (map.containsKey(key)) {
+                Object value = map.get(key);
+                if (value != null) {
+                    String s = value.toString();
+                    if (!s.trim().isEmpty()) return s;
+                }
+            }
         }
         return defaultValue;
+    }
+
+    private Boolean extractFirstBoolean(Map map, String... keys) {
+        if (map == null || keys == null) return null;
+        for (String key : keys) {
+            if (key == null) continue;
+            if (map.containsKey(key)) {
+                Object value = map.get(key);
+                if (value instanceof Boolean) return (Boolean) value;
+                if (value instanceof Number) return ((Number) value).intValue() != 0;
+                if (value != null) {
+                    String s = value.toString().trim().toLowerCase();
+                    if ("true".equals(s) || "1".equals(s) || "si".equals(s) || "sí".equals(s)) return true;
+                    if ("false".equals(s) || "0".equals(s) || "no".equals(s)) return false;
+                }
+            }
+        }
+        return null;
     }
 }
