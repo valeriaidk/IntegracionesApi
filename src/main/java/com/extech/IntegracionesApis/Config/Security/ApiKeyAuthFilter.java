@@ -54,6 +54,12 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String tokenPlano = authHeader.substring(7);
 
+            // Si parece JWT, no lo validamos como ApiKey (lo maneja JwtAuthenticationFilter)
+            if (isJwtLike(tokenPlano)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             Integer usuarioIdValidado = validarTokenYObtenerUsuarioId(tokenPlano);
             
             if (usuarioIdValidado != null) {
@@ -77,6 +83,14 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             // Limpiar el contexto al finalizar la request
             UserContext.clear();
         }
+    }
+
+    private boolean isJwtLike(String token) {
+        if (token == null) return false;
+        int first = token.indexOf('.');
+        if (first < 0) return false;
+        int second = token.indexOf('.', first + 1);
+        return second > first + 1 && second < token.length() - 1;
     }
 
     /**

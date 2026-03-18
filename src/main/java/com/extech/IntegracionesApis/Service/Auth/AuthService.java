@@ -2,6 +2,7 @@ package com.extech.IntegracionesApis.Service.Auth;
 
 import com.extech.IntegracionesApis.Domain.Model.TokenUsuario;
 import com.extech.IntegracionesApis.Domain.Model.Usuario;
+import com.extech.IntegracionesApis.Config.Security.JwtProvider;
 import com.extech.IntegracionesApis.Repository.Auth.AuthSpRepository;
 import com.extech.IntegracionesApis.Repository.User.TokenUsuarioRepository;
 import com.extech.IntegracionesApis.Repository.UsuarioRepository;
@@ -30,6 +31,7 @@ public class AuthService {
     private final UsuarioRepository usuarioRepository;
     private final PasswordHashUtil passwordHashUtil;
     private final SecretEncryptionUtil secretEncryptionUtil;
+    private final JwtProvider jwtProvider;
 
     private String buildStoredApiKey(String apiKeyHash, String apiKeyPlain) {
         String encrypted = secretEncryptionUtil.encrypt(apiKeyPlain);
@@ -185,6 +187,17 @@ public class AuthService {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("token", apiKeyPlano);
         response.put("tipo", "ApiKey");
+        String jwt = jwtProvider.generateToken(
+                emailBd,
+                Map.of(
+                        "usuarioId", usuarioId,
+                        "email", emailBd,
+                        "plan", planNombre,
+                        "fullName", (nombre + " " + apellido).trim()
+                )
+        );
+        response.put("jwt", jwt);
+        response.put("jwtTipo", "Bearer");
         response.put("usuario", usuarioMap);
 
         // 📊 Debug: Verificar respuesta completa antes de enviar
