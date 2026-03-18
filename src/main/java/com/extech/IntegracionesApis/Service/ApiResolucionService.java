@@ -3,6 +3,11 @@ package com.extech.IntegracionesApis.Service;
 import com.extech.IntegracionesApis.Domain.Model.ApiExternaFuncion;
 import com.extech.IntegracionesApis.Domain.Model.ApiServicesFuncion;
 import com.extech.IntegracionesApis.Repository.ApiConfiguracionRepository;
+import com.extech.IntegracionesApis.Repository.ApiExternaResolucionProjection;
+import com.extech.IntegracionesApis.Repository.General.ApiAsignacionRepository;
+import com.extech.IntegracionesApis.Repository.General.ApiExternaFuncionRepository;
+import com.extech.IntegracionesApis.Repository.General.ApiServicesFuncionRepository;
+import com.extech.IntegracionesApis.Util.SecretEncryptionUtil;
 import com.extech.IntegracionesApis.Util.Security.TokenEncryptionUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +31,11 @@ import java.util.Optional;
 public class ApiResolucionService {
 
     private final ApiConfiguracionRepository apiConfiguracionRepository;
+    private final ApiAsignacionRepository apiAsignacionRepository;
+    private final ApiExternaFuncionRepository apiExternaFuncionRepository;
+    private final ApiServicesFuncionRepository apiServicesFuncionRepository;
     private final TokenEncryptionUtil tokenEncryptionUtil;
+    private final SecretEncryptionUtil secretEncryptionUtil;
 
     /**
      * Resuelve la configuración completa del proveedor externo
@@ -40,22 +49,94 @@ public class ApiResolucionService {
         
         try {
             // Ejecutar el SP para obtener la configuración completa
-            Optional<ApiExternaFuncion> configOpt = apiConfiguracionRepository
+            Optional<ApiExternaResolucionProjection> configOpt = apiConfiguracionRepository
                     .obtenerConfiguracionPorUsuarioYFuncion(usuarioId, codigoFuncion);
             
             if (configOpt.isPresent()) {
-                ApiExternaFuncion config = configOpt.get();
-                log.info("Configuración encontrada - Endpoint: {}, Método: {}", 
+                ApiExternaResolucionProjection row = configOpt.get();
+
+                ApiExternaFuncion config = new ApiExternaFuncion();
+                config.setApiExternaFuncionId(row.getApiExternaFuncionId());
+                config.setNombre(row.getNombreFuncionExterna());
+                config.setCodigo(row.getCodigoFuncionExterna());
+                config.setEndpoint(row.getEndpointExterno());
+                config.setMetodo(row.getMetodoExterno());
+                config.setToken(row.getToken());
+                config.setAutorizacion(row.getAutorizacion());
+                config.setRequest(row.getRequest());
+                config.setResponse(row.getResponse());
+                config.setTiempoConsulta(row.getTiempoConsulta());
+                config.setSegmentoTiempo(row.getSegmentoTiempo());
+
+                log.info("Configuración encontrada (SP) - Endpoint: {}, Método: {}",
                         config.getEndpoint(), config.getMetodo());
-                return configOpt;
-            } else {
-                log.warn("No se encontró configuración para usuarioId: {} y función: {}", usuarioId, codigoFuncion);
-                return Optional.empty();
+                return Optional.of(config);
             }
+
+            // Fallback 1: Resolver por JOIN en código (equivalente al SP) usando ApiServicesFuncion -> ApiAsignacion -> ApiExternaFuncion
+            Optional<ApiServicesFuncion> funcionInterna = apiServicesFuncionRepository.findByCodigo(codigoFuncion);
+            if (funcionInterna.isPresent()) {
+                Integer apiServicesFuncionId = funcionInterna.get().getApiServicesFuncionId();
+                var asignaciones = apiAsignacionRepository.findByApiServicesFuncionId(apiServicesFuncionId);
+                if (asignaciones != null && !asignaciones.isEmpty()) {
+                    Integer apiExternaFuncionId = asignaciones.get(0).getApiExternaFuncionId();
+                    Optional<ApiExternaFuncion> externaOpt = apiExternaFuncionRepository
+                            .findByApiExternaFuncionIdAndActivoTrueAndEliminadoFalse(apiExternaFuncionId);
+                    if (externaOpt.isPresent()) {
+                        ApiExternaFuncion config = externaOpt.get();
+                        log.warn("Configuración encontrada por JOIN en código - Usuario: {}, Función: {}, ApiExternaFuncionId: {}",
+                                usuarioId, codigoFuncion, apiExternaFuncionId);
+                        return externaOpt;
+                    }
+                }
+            }
+
+            // Fallback 2: permitir configuración global por código (sin asignación por usuario)
+            Optional<ApiExternaFuncion> fallback = apiExternaFuncionRepository
+                    .findByCodigoAndActivoTrueAndEliminadoFalse(codigoFuncion);
+            if (fallback.isPresent()) {
+                ApiExternaFuncion config = fallback.get();
+                log.warn("Usando configuración GLOBAL por código {} (sin asignación por usuario {}) - Endpoint: {}, Método: {}",
+                        codigoFuncion, usuarioId, config.getEndpoint(), config.getMetodo());
+                return fallback;
+            }
+
+            log.warn("No se encontró configuración para usuarioId: {} y función: {}", usuarioId, codigoFuncion);
+            return Optional.empty();
             
         } catch (Exception e) {
             log.error("Error resolviendo configuración externa para usuarioId: {} y función: {}", 
                     usuarioId, codigoFuncion, e);
+            // Si el SP falla, intentar resolver por JOIN en código primero, luego fallback por código.
+            try {
+                Optional<ApiServicesFuncion> funcionInterna = apiServicesFuncionRepository.findByCodigo(codigoFuncion);
+                if (funcionInterna.isPresent()) {
+                    Integer apiServicesFuncionId = funcionInterna.get().getApiServicesFuncionId();
+                    var asignaciones = apiAsignacionRepository.findByApiServicesFuncionId(apiServicesFuncionId);
+                    if (asignaciones != null && !asignaciones.isEmpty()) {
+                        Integer apiExternaFuncionId = asignaciones.get(0).getApiExternaFuncionId();
+                        Optional<ApiExternaFuncion> externaOpt = apiExternaFuncionRepository
+                                .findByApiExternaFuncionIdAndActivoTrueAndEliminadoFalse(apiExternaFuncionId);
+                        if (externaOpt.isPresent()) {
+                            ApiExternaFuncion config = externaOpt.get();
+                            log.warn("Configuración encontrada por JOIN en código tras fallo del SP - ApiExternaFuncionId: {}",
+                                    apiExternaFuncionId);
+                            return externaOpt;
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+
+            // Si todo falla, intentar fallback global por código
+            Optional<ApiExternaFuncion> fallback = apiExternaFuncionRepository
+                    .findByCodigoAndActivoTrueAndEliminadoFalse(codigoFuncion);
+            if (fallback.isPresent()) {
+                ApiExternaFuncion config = fallback.get();
+                log.warn("Usando configuración GLOBAL por código {} tras fallo del SP - Endpoint: {}, Método: {}",
+                        codigoFuncion, config.getEndpoint(), config.getMetodo());
+                return fallback;
+            }
             return Optional.empty();
         }
     }
@@ -68,8 +149,7 @@ public class ApiResolucionService {
      */
     public Optional<ApiServicesFuncion> obtenerFuncionInterna(String codigoFuncion) {
         log.debug("Buscando función interna con código: {}", codigoFuncion);
-        
-        return apiConfiguracionRepository.findByCodigoAndActivoTrue(codigoFuncion);
+        return apiServicesFuncionRepository.findByCodigo(codigoFuncion);
     }
 
     /**
@@ -89,8 +169,16 @@ public class ApiResolucionService {
             log.debug("Token externo descifrado correctamente");
             return tokenDescifrado;
         } catch (Exception e) {
-            log.error("Error descifrando token externo", e);
-            return null;
+            // Intentar con AES-GCM (SecretEncryptionUtil) si el token fue cifrado con esa utilidad
+            try {
+                String tokenDescifrado = secretEncryptionUtil.decrypt(tokenCifrado);
+                log.debug("Token externo descifrado correctamente (AES-GCM)");
+                return tokenDescifrado;
+            } catch (Exception ignored) {
+                // Como último fallback, asumir que el token está en claro
+                log.warn("No se pudo descifrar token externo; usando valor tal cual");
+                return tokenCifrado;
+            }
         }
     }
 
