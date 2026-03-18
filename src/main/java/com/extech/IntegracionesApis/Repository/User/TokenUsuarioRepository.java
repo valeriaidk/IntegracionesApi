@@ -13,5 +13,4 @@ public interface TokenUsuarioRepository extends JpaRepository<TokenUsuario, Inte
     Optional<TokenUsuario> findByUsuarioIdAndActivoTrue(Integer usuarioId);
     List<TokenUsuario> findByUsuarioId(Integer usuarioId);
     List<TokenUsuario> findByActivoTrueAndFechaFinVigenciaBefore(LocalDateTime fecha);
-    void deleteByTokenValue(String tokenValue);
 }

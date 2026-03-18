@@ -19,8 +19,8 @@ public class TokenUsuario {
     @Column(name = "UsuarioId", nullable = false)
     private Integer usuarioId;
 
-    @Column(name = "TokenValue", length = 256, nullable = false)
-    private String tokenValue;
+    @Column(name = "ApiKey", length = 1024, nullable = false)
+    private String apiKey;
 
     @Column(name = "FechaInicioVigencia")
     private LocalDateTime fechaInicioVigencia;

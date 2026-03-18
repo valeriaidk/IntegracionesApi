@@ -22,6 +22,19 @@ public class AuthController {
         return ResponseEntity.ok(authService.autenticar(email, password));
     }
 
+    @PostMapping("/generate-token")
+    public ResponseEntity<?> generateToken(@RequestBody Map<String, Object> body) {
+        Integer usuarioId = body.get("usuarioId") != null ? ((Number) body.get("usuarioId")).intValue() : null;
+        if (usuarioId == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", "usuarioId es requerido"
+            ));
+        }
+
+        return ResponseEntity.ok(authService.regenerarApiKey(usuarioId));
+    }
+
     @PostMapping("/actualizar")
     public ResponseEntity<?> actualizarUsuario(@RequestBody Map<String, Object> body) {
         Integer usuarioId = body.get("usuarioId") != null ? ((Number) body.get("usuarioId")).intValue() : null;

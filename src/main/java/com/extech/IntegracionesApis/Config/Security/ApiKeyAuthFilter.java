@@ -94,7 +94,19 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         List<TokenUsuario> tokensActivos = tokenUsuarioRepository.findByActivoTrueAndFechaFinVigenciaBefore(LocalDateTime.now().plusYears(10));
 
         for (TokenUsuario tokenDb : tokensActivos) {
-            if (passwordHashUtil.verify(tokenPlano, tokenDb.getTokenValue())) { // Buscar hash en TokenValue
+            String stored = tokenDb.getApiKey();
+            if (stored == null || stored.isEmpty()) {
+                continue;
+            }
+
+            // Formato esperado: "<hash>::<apiKeyEncriptadoBase64>"
+            String hashPart = stored;
+            int sepIdx = stored.indexOf("::");
+            if (sepIdx > 0) {
+                hashPart = stored.substring(0, sepIdx);
+            }
+
+            if (passwordHashUtil.verify(tokenPlano, hashPart)) { // Verificar contra hash almacenado
                 log.debug("Token validado correctamente para usuarioId: {}", tokenDb.getUsuarioId());
                 return tokenDb.getUsuarioId();
             }

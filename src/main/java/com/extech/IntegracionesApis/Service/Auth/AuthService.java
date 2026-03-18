@@ -5,6 +5,7 @@ import com.extech.IntegracionesApis.Domain.Model.Usuario;
 import com.extech.IntegracionesApis.Repository.Auth.AuthSpRepository;
 import com.extech.IntegracionesApis.Repository.User.TokenUsuarioRepository;
 import com.extech.IntegracionesApis.Repository.UsuarioRepository;
+import com.extech.IntegracionesApis.Util.SecretEncryptionUtil;
 import com.extech.IntegracionesApis.Util.Security.PasswordHashUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,10 +23,34 @@ import java.util.Optional;
 @Slf4j
 public class AuthService {
 
+    private static final String APIKEY_DELIMITER = "::";
+
     private final AuthSpRepository authSpRepository;
     private final TokenUsuarioRepository tokenUsuarioRepository;
     private final UsuarioRepository usuarioRepository;
     private final PasswordHashUtil passwordHashUtil;
+    private final SecretEncryptionUtil secretEncryptionUtil;
+
+    private String buildStoredApiKey(String apiKeyHash, String apiKeyPlain) {
+        String encrypted = secretEncryptionUtil.encrypt(apiKeyPlain);
+        return apiKeyHash + APIKEY_DELIMITER + encrypted;
+    }
+
+    private String extractHash(String stored) {
+        if (stored == null) return null;
+        int idx = stored.indexOf(APIKEY_DELIMITER);
+        return idx > 0 ? stored.substring(0, idx) : stored;
+    }
+
+    private String extractPlain(String stored) {
+        if (stored == null) return null;
+        int idx = stored.indexOf(APIKEY_DELIMITER);
+        if (idx <= 0 || idx + APIKEY_DELIMITER.length() >= stored.length()) {
+            return null;
+        }
+        String enc = stored.substring(idx + APIKEY_DELIMITER.length());
+        return secretEncryptionUtil.decrypt(enc);
+    }
 
     public Map<String, Object> autenticar(String email, String password) {
         log.info("Intentando autenticar usuario: {}", email);
@@ -78,44 +103,69 @@ public class AuthService {
             throw new RuntimeException("Credenciales inválidas");
         }
 
-        String apiKeyPlano = passwordHashUtil.generateApiKey();
-        String apiKeyHash = passwordHashUtil.hash(apiKeyPlano);
-
-        if (apiKeyHash == null || apiKeyHash.isEmpty()) {
-            log.error("Error: No se pudo generar el hash del token. apiKeyPlano generado: {}", apiKeyPlano);
-            throw new RuntimeException("Error al generar el token de autenticación");
-        }
-
-        log.debug("Token generado para usuario {} - apiKeyPlano length: {}, apiKeyHash length: {}", 
-                  email, apiKeyPlano.length(), apiKeyHash.length());
-
         LocalDateTime ahora = LocalDateTime.now();
         LocalDateTime vence = ahora.plusMonths(1);
 
         // Verificar si el usuario ya tiene un token activo
         Optional<TokenUsuario> tokenExistenteOpt = tokenUsuarioRepository.findByUsuarioIdAndActivoTrue(usuarioId);
-        
+
+        String apiKeyPlano;
         TokenUsuario tokenUsuario;
-        if (tokenExistenteOpt.isPresent()) {
-            // Actualizar token existente
+
+        if (tokenExistenteOpt.isPresent() &&
+                tokenExistenteOpt.get().getFechaFinVigencia() != null &&
+                tokenExistenteOpt.get().getFechaFinVigencia().isAfter(ahora)) {
+            // Reutilizar token existente mientras siga vigente
             tokenUsuario = tokenExistenteOpt.get();
-            tokenUsuario.setTokenValue(apiKeyHash); // Guardar hash en TokenValue
+            String stored = tokenUsuario.getApiKey();
+            apiKeyPlano = extractPlain(stored);
+
+            // Si no podemos recuperar el token en claro (dato legacy), generamos uno nuevo UNA sola vez
+            if (apiKeyPlano == null || apiKeyPlano.isEmpty()) {
+                apiKeyPlano = passwordHashUtil.generateApiKey();
+                String apiKeyHash = passwordHashUtil.hash(apiKeyPlano);
+                if (apiKeyHash == null || apiKeyHash.isEmpty()) {
+                    log.error("Error: No se pudo regenerar el hash del token para usuario {}", email);
+                    throw new RuntimeException("Error al regenerar el token de autenticación");
+                }
+                tokenUsuario.setApiKey(buildStoredApiKey(apiKeyHash, apiKeyPlano));
+                tokenUsuario.setFechaInicioVigencia(ahora);
+                tokenUsuario.setFechaFinVigencia(vence);
+                tokenUsuario.setFechaModificacion(ahora);
+                tokenUsuario.setUsuarioModificacion(usuarioId);
+                log.info("Re-generando ApiKey para usuario {} (migración legacy sin parte cifrada)", email);
+            } else {
+                log.info("Reutilizando ApiKey existente para usuario {}", email);
+            }
+        } else {
+            // Crear nuevo token (o renovar uno vencido)
+            apiKeyPlano = passwordHashUtil.generateApiKey();
+            String apiKeyHash = passwordHashUtil.hash(apiKeyPlano);
+
+            if (apiKeyHash == null || apiKeyHash.isEmpty()) {
+                log.error("Error: No se pudo generar el hash del token. apiKeyPlano generado: {}", apiKeyPlano);
+                throw new RuntimeException("Error al generar el token de autenticación");
+            }
+
+            if (tokenExistenteOpt.isPresent()) {
+                tokenUsuario = tokenExistenteOpt.get();
+                log.info("Renovando token vencido para usuario {}", email);
+            } else {
+                tokenUsuario = new TokenUsuario();
+                tokenUsuario.setUsuarioId(usuarioId);
+                tokenUsuario.setUsuarioRegistro(usuarioId);
+                log.info("Creando nuevo token para usuario {}", email);
+            }
+
+            tokenUsuario.setApiKey(buildStoredApiKey(apiKeyHash, apiKeyPlano)); // Guardar hash + token cifrado en ApiKey
             tokenUsuario.setFechaInicioVigencia(ahora);
             tokenUsuario.setFechaFinVigencia(vence);
             tokenUsuario.setFechaModificacion(ahora);
             tokenUsuario.setUsuarioModificacion(usuarioId);
-            log.info("Actualizando token existente para usuario {}", email);
-        } else {
-            // Crear nuevo token
-            tokenUsuario = new TokenUsuario();
-            tokenUsuario.setUsuarioId(usuarioId);
-            tokenUsuario.setTokenValue(apiKeyHash); // Guardar hash en TokenValue
-            tokenUsuario.setFechaInicioVigencia(ahora);
-            tokenUsuario.setFechaFinVigencia(vence);
-            tokenUsuario.setUsuarioRegistro(usuarioId);
-            log.info("Creando nuevo token para usuario {}", email);
         }
-        
+
+        log.debug("Token preparado para usuario {} - apiKeyPlano length: {}", email, apiKeyPlano.length());
+
         tokenUsuarioRepository.save(tokenUsuario);
         log.info("Token guardado en BD para usuario {} con ID de token: {}", email, tokenUsuario.getId());
 
@@ -141,6 +191,55 @@ public class AuthService {
         log.info("🚀 Enviando respuesta al frontend - Plan: {}, planConfig incluido: {}", 
                 planNombre, planConfig != null);
         log.info("📋 UsuarioMap completo: {}", usuarioMap);
+
+        return response;
+    }
+
+    /**
+     * Genera manualmente una nueva ApiKey para un usuario existente.
+     * Se usará desde el front con un botón "Generar token".
+     */
+    public Map<String, Object> regenerarApiKey(Integer usuarioId) {
+        log.info("Solicitud de regeneración de ApiKey para usuarioId: {}", usuarioId);
+
+        Optional<Usuario> usuarioOpt = usuarioRepository.findById(usuarioId);
+        if (usuarioOpt.isEmpty()) {
+            throw new RuntimeException("Usuario no encontrado");
+        }
+
+        Usuario usuario = usuarioOpt.get();
+        if (Boolean.TRUE.equals(usuario.getEliminado()) || !Boolean.TRUE.equals(usuario.getActivo())) {
+            throw new RuntimeException("Usuario inactivo o eliminado");
+        }
+
+        String apiKeyPlano = passwordHashUtil.generateApiKey();
+        String apiKeyHash = passwordHashUtil.hash(apiKeyPlano);
+
+        if (apiKeyHash == null || apiKeyHash.isEmpty()) {
+            log.error("Error al generar nuevo ApiKey para usuarioId {}", usuarioId);
+            throw new RuntimeException("Error al generar el token de autenticación");
+        }
+
+        LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime vence = ahora.plusMonths(1);
+
+        Optional<TokenUsuario> tokenExistenteOpt = tokenUsuarioRepository.findByUsuarioIdAndActivoTrue(usuarioId);
+        TokenUsuario tokenUsuario = tokenExistenteOpt.orElseGet(TokenUsuario::new);
+
+        tokenUsuario.setUsuarioId(usuarioId);
+        tokenUsuario.setApiKey(buildStoredApiKey(apiKeyHash, apiKeyPlano));
+        tokenUsuario.setFechaInicioVigencia(ahora);
+        tokenUsuario.setFechaFinVigencia(vence);
+        tokenUsuario.setFechaModificacion(ahora);
+        tokenUsuario.setUsuarioModificacion(usuarioId);
+
+        tokenUsuarioRepository.save(tokenUsuario);
+        log.info("ApiKey regenerado manualmente para usuarioId {}", usuarioId);
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("token", apiKeyPlano);
+        response.put("tipo", "ApiKey");
+        response.put("usuarioId", usuarioId);
 
         return response;
     }
