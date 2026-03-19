@@ -8,9 +8,9 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/apis-externas")
+@RequestMapping("/api/apis-externas-control")
 @RequiredArgsConstructor
-public class ApiExternaFuncionController {
+public class ApiExternaFuncionControlController {
 
     private final ApiExternaFuncionService apiExternaFuncionService;
 

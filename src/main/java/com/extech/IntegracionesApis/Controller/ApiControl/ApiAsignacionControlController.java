@@ -10,10 +10,10 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/asignaciones")
+@RequestMapping("/api/asignaciones-control")
 @RequiredArgsConstructor
 @Slf4j
-public class ApiAsignacionController {
+public class ApiAsignacionControlController {
 
     private final ApiAsignacionService apiAsignacionService;
 

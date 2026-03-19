@@ -213,14 +213,14 @@ public class AuthService {
             log.info("✅ Ya tiene API Key activa — no se regenera");
         }
 
-        // JWT — se genera nuevo en cada login
+        // JWT — se genera nuevo en cada login (solo plan y usuario)
         String jwt = jwtProvider.generateToken(
             emailBd,
             Map.of(
                 "usuarioId", usuarioId,
-                "email", emailBd,
                 "plan", planNombre,
-                "fullName", (nombre + " " + apellido).trim()
+                "fullName", (nombre + " " + apellido).trim(),
+                "email", emailBd
             )
         );
 
