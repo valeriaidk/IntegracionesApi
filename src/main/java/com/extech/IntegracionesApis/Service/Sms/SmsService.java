@@ -38,7 +38,7 @@ public class SmsService {
     /**
      * Código de función interna para SMS
      */
-    private static final String CODIGO_FUNCION_SMS = "SMS_SEND";
+    private static final String CODIGO_FUNCION_SMS = "SMS_ENVIO";
 
     /**
      * Envía un mensaje SMS usando configuración resuelta desde base de datos

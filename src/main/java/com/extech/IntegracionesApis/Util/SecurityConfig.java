@@ -30,8 +30,12 @@ public class SecurityConfig {
                     "/api/auth/login",
                     "/api/auth/register",
                     "/api/auth/actualizar",
+                    "/api/auth/generate-token",
                     "/api/apis-externas/**",
                     "/actuator/**",
+                    "/api/v1/sms/test-config",
+                    "/api/v1/sms/config/verificar-asignaciones",
+                    "/api/v1/sms/validate-config",
                     "/",
                     "/error"
                 ).permitAll()

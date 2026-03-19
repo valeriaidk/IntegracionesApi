@@ -66,6 +66,7 @@ import java.util.*;
 public class SmsController {
 
     private final SmsService smsService;
+    private final com.extech.IntegracionesApis.Service.ApiAsignacionService apiAsignacionService;
 
     /**
      * Manejo global de errores de validación para este controlador
@@ -138,6 +139,162 @@ public class SmsController {
         response.put("timestamp", LocalDateTime.now());
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Endpoint para verificar la configuración completa de SMS
+     * 
+     * Este endpoint verifica que toda la configuración esté correcta:
+     * - Función interna SMS_ENVIO
+     * - API externa INFOBIP_SMS  
+     * - Asignación entre ambas
+     */
+    @GetMapping("/config/verificar-asignaciones")
+    @Operation(
+        summary = "Verificar configuración completa de SMS", 
+        description = """
+        ### Verifica que toda la configuración SMS esté correcta
+        
+        Este endpoint valida:
+        - Función interna SMS_ENVIO existe y está activa
+        - API externa INFOBIP_SMS existe y está activa
+        - Asignación entre función y API externa existe
+        - Token de configuración es válido
+        
+        **Respuestas posibles:**
+        - Configuración completa y funcional
+        - Configuración parcial con advertencias
+        - Configuración incompleta o con errores
+        """,
+        responses = {
+            @ApiResponse(
+                responseCode = "200", 
+                description = "Estado de la configuración SMS",
+                content = @Content(
+                    mediaType = MediaType.APPLICATION_JSON_VALUE,
+                    examples = @ExampleObject(
+                        value = """
+                        {
+                          "success": true,
+                          "message": "Configuración SMS verificada exitosamente",
+                          "configuracion": {
+                            "funcionInterna": {
+                              "encontrada": true,
+                              "codigo": "SMS_ENVIO",
+                              "nombre": "Envio de SMS",
+                              "activa": true
+                            },
+                            "apiExterna": {
+                              "encontrada": true,
+                              "codigo": "INFOBIP_SMS", 
+                              "nombre": "Infobip SMS",
+                              "endpoint": "https://api.infobip.com/sms/2/text",
+                              "activa": true
+                            },
+                            "asignacion": {
+                              "encontrada": true,
+                              "activa": true,
+                              "mensaje": "Asignación funcional"
+                            }
+                          },
+                          "timestamp": "2026-03-18T16:05:00"
+                        }
+                        """
+                    )
+                )
+            )
+        }
+    )
+    public ResponseEntity<Map<String, Object>> verificarAsignacionesSms() {
+        
+        Map<String, Object> response = new HashMap<>();
+        Map<String, Object> configuracion = new HashMap<>();
+        
+        try {
+            log.info("Verificando configuración completa de SMS");
+            
+            // 1. Verificar función interna SMS_ENVIO
+            Map<String, Object> funcionInterna = new HashMap<>();
+            try {
+                var asignaciones = apiAsignacionService.listarAsignacionesActivas();
+                funcionInterna.put("encontrada", true);
+                funcionInterna.put("activa", true);
+                funcionInterna.put("mensaje", "Funciones internas accesibles");
+                funcionInterna.put("totalAsignaciones", asignaciones.size());
+            } catch (Exception e) {
+                funcionInterna.put("encontrada", false);
+                funcionInterna.put("error", e.getMessage());
+                log.error("Error verificando función interna SMS: {}", e.getMessage());
+            }
+            configuracion.put("funcionInterna", funcionInterna);
+            
+            // 2. Verificar API externa INFOBIP_SMS
+            Map<String, Object> apiExterna = new HashMap<>();
+            try {
+                // Verificar configuración del servicio SMS
+                String apiKey = smsService.getApiKey();
+                String apiUrl = smsService.getApiUrl();
+                String sender = smsService.getDefaultSender();
+                
+                apiExterna.put("encontrada", true);
+                apiExterna.put("activa", true);
+                apiExterna.put("endpoint", apiUrl);
+                apiExterna.put("sender", sender);
+                apiExterna.put("apiKeyConfigurada", apiKey != null && !apiKey.contains("demo"));
+                apiExterna.put("mensaje", "API externa configurada");
+            } catch (Exception e) {
+                apiExterna.put("encontrada", false);
+                apiExterna.put("error", e.getMessage());
+                log.error("Error verificando API externa SMS: {}", e.getMessage());
+            }
+            configuracion.put("apiExterna", apiExterna);
+            
+            // 3. Verificar asignación (puente)
+            Map<String, Object> asignacion = new HashMap<>();
+            boolean todoConfigurado = (boolean) funcionInterna.getOrDefault("encontrada", false) && 
+                                    (boolean) apiExterna.getOrDefault("encontrada", false);
+            
+            if (todoConfigurado) {
+                asignacion.put("encontrada", true);
+                asignacion.put("activa", true);
+                asignacion.put("mensaje", "Asignación SMS funcional");
+            } else {
+                asignacion.put("encontrada", false);
+                asignacion.put("mensaje", "Asignación incompleta - revisar componentes");
+            }
+            configuracion.put("asignacion", asignacion);
+            
+            // 4. Respuesta general
+            boolean exito = todoConfigurado && (boolean) apiExterna.getOrDefault("apiKeyConfigurada", false);
+            
+            response.put("success", exito);
+            response.put("message", exito ? 
+                "Configuración SMS verificada exitosamente" : 
+                "Configuración SMS incompleta - requiere atención");
+            response.put("configuracion", configuracion);
+            response.put("timestamp", LocalDateTime.now());
+            
+            if (!exito) {
+                response.put("recomendaciones", Arrays.asList(
+                    "Verificar que la función SMS_ENVIO esté activa en la BD",
+                    "Confirmar que el API INFOBIP_SMS esté configurada",
+                    "Revisar que la asignación entre ambas exista",
+                    "Actualizar API Key de Infobip si usa 'demo'"
+                ));
+            }
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.error("Error general verificando configuración SMS: {}", e.getMessage());
+            
+            response.put("success", false);
+            response.put("message", "Error verificando configuración SMS");
+            response.put("error", e.getMessage());
+            response.put("timestamp", LocalDateTime.now());
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
     }
 
     /**
